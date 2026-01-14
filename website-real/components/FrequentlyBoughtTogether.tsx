@@ -89,6 +89,12 @@ export const FBT_BY_PAGE: Record<string, FBTProduct[]> = {
     { id: 'porcelain-hat', name: 'Porcelain FS Cap', price: 44, image: '/images/products/Porcelain Hat/FS2.png' },
     { id: 'first-edition-tee', name: 'First Edition Tee', price: 45, image: '/images/products/First Edition Tee/FE1.png' },
   ],
+
+  'jacket-tester': [
+    { id: 'track-pants', name: 'Retro Track Pants', price: 90, image: '/images/products/Track Pants/ELMHURST TARO CUSTARD/P6.png' },
+    { id: 'forest-hills-hat', name: 'Forest Hills Hat', price: 46, image: '/images/products/Forest Hills Hat/G1.png' },
+    { id: 'gala-tshirt', name: 'Gala Tee', price: 40, image: '/images/products/gala-tshirt/broadwaynoir/GN4.png' },
+  ],
 };
 
 export function getFBTForPage(slug?: string): FBTProduct[] {

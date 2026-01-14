@@ -89,6 +89,8 @@ export const products: Product[] = [
   { id: 6005, name: "Retro Track Jacket", price: "$110", image: "/images/products/Track Top/VICE CITY RUNNERS/J3.png", hoverImage: "/images/products/tracksuits/VICE CITY RUNNERS/TS5.png", category: "Tracksuits", variantColor: "Vice City Runners", variantSlug: "vice-city-runners" },
   { id: 6006, name: "Retro Track Jacket", price: "$110", image: "/images/products/Track Top/Victory Liberty Club/J2.png", hoverImage: "/images/products/tracksuits/Victory Liberty Club/TS6.png", category: "Tracksuits", variantColor: "Victory Liberty Club", variantSlug: "victory-liberty-club" },
   { id: 6007, name: "Retro Track Jacket", price: "$110", image: "/images/products/Track Top/YORKVILLE BLACK AND WHITE COOKIES/J5.png", hoverImage: "/images/products/tracksuits/YORKVILLE BLACK AND WHITE COOKIES/TS1.png", category: "Tracksuits", variantColor: "Yorkville Black and White Cookies", variantSlug: "yorkville-black-and-white-cookies" },
+
+  { id: 7001, name: "Jacket Tester", price: "$150", image: "/images/products/Track Top/Greenpoint Patina Crew/J1.png", hoverImage: "/images/products/Track Top/Greenpoint Patina Crew/J3.png", category: "Extras" },
 ];
 
 interface ProductsGridProps {
@@ -303,6 +305,7 @@ export default function ProductsGrid({ categoryFilter, showBackgroundVideo = tru
             'Retro Track Jacket': '/shop/track-top',
             'Wabisabi™ Scheffel Hall Pears Tee': '/shop/wasabi-tee',
             'First Edition Tee': '/shop/first-edition-tee',
+            'Jacket Tester': '/shop/jacket-tester',
           };
           const base = basePathMap[product.name] || `/products/${product.id}`;
           const slug = activeVariant.variantSlug;

@@ -7,6 +7,7 @@ import LogoButton from "./LogoButton"
 import CartBar from "./CartBar"
 import StaggeredMenu from "./StagerredMenu"
 import SiteFooter from "./SiteFooter"
+import BackgroundVideo from "./BackgroundVideo"
 
 // Context to control logo visibility (for intro)
 export const LogoVisibilityContext = createContext<{ hideLogo: boolean; setHideLogo: (v: boolean) => void }>({ hideLogo: false, setHideLogo: () => {} })
@@ -56,6 +57,7 @@ export default function ClientRootLayout({ children }: ClientRootLayoutProps) {
   
   return (
     <LogoVisibilityContext.Provider value={{ hideLogo, setHideLogo }}>
+      <BackgroundVideo />
       {/* Logo button, visible on every page, picture only, hidden if hideLogo */}
       <LogoButton />
       
