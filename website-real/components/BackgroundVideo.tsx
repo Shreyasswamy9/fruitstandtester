@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
-const DEFAULT_VIDEO_SRC = process.env.NEXT_PUBLIC_BACKGROUND_VIDEO_SRC || "https://cdn.jsdelivr.net/gh/Shreyasswamy9/FruitstandNY/Videos/homevideo.mp4";
+const DEFAULT_VIDEO_SRC = process.env.NEXT_PUBLIC_BACKGROUND_VIDEO_SRC || "https://cdn.jsdelivr.net/gh/Shreyasswamy9/fruitstandNYtester/website-real/public/images/products/jackettester/jackettester.mp4";
 
 export default function BackgroundVideo({ src = DEFAULT_VIDEO_SRC }: { src?: string }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
