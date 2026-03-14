@@ -21,6 +21,34 @@ export const SizeGuide: React.FC<SizeGuideProps> = ({
   // Candidate image sources to try before showing a fallback UI
   const candidatePaths = React.useMemo(() => {
     if (imagePath) return [imagePath];
+    // Special cases for Liberty Hoodie/Zip-Up, Rugby Jersey, and Waffle Knit
+    if (productSlug === "liberty-hoodie" || productSlug === "liberty-zip-up") {
+      return [
+        "/images/size-guides/Size Guide/liberty hoodie size guide.jpeg",
+        "/images/size-guides/liberty-hoodie.png",
+        "/images/size-guides/liberty-hoodie.jpg",
+        "/images/size-guides/liberty-hoodie.jpeg",
+        "/images/size-guides/liberty-hoodie.webp",
+      ];
+    }
+    if (productSlug === "rugby-jersey" || productSlug === "kiwi-rugby-jersey" || productSlug === "jozi-rugby-jersey") {
+      return [
+        "/images/size-guides/Size Guide/rugby jersey size guide.jpeg",
+        "/images/size-guides/rugby-jersey.png",
+        "/images/size-guides/rugby-jersey.jpg",
+        "/images/size-guides/rugby-jersey.jpeg",
+        "/images/size-guides/rugby-jersey.webp",
+      ];
+    }
+    if (productSlug === "waffle-knit" || productSlug === "stamped-waffle-knit") {
+      return [
+        "/images/size-guides/Size Guide/waffle knit.jpeg",
+        "/images/size-guides/waffle-knit.png",
+        "/images/size-guides/waffle-knit.jpg",
+        "/images/size-guides/waffle-knit.jpeg",
+        "/images/size-guides/waffle-knit.webp",
+      ];
+    }
     const base = `/images/size-guides/${productSlug}`;
     return [
       `${base}.png`,
@@ -77,7 +105,7 @@ export const SizeGuide: React.FC<SizeGuideProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[10010] flex items-center justify-center p-6 backdrop-blur-sm"
+            className="fixed inset-0 z-10010 flex items-center justify-center p-6 backdrop-blur-sm"
             style={{ background: 'rgba(0,0,0,0.55)' }}
             onClick={() => setOpen(false)}
           >
@@ -86,7 +114,7 @@ export const SizeGuide: React.FC<SizeGuideProps> = ({
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 260, damping: 22 }}
-              className="relative w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl border border-black/10 bg-gradient-to-b from-white to-neutral-50"
+              className="relative w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl border border-black/10 bg-linear-to-b from-white to-neutral-50"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="absolute top-3 right-3 z-20">
@@ -98,7 +126,7 @@ export const SizeGuide: React.FC<SizeGuideProps> = ({
                   Close ✕
                 </button>
               </div>
-              <div className="relative w-full h-[520px]">
+              <div className="relative w-full h-130">
                 {!imageError ? (
                   <Image
                     src={candidatePaths[Math.min(activeSrcIndex, candidatePaths.length - 1)]}

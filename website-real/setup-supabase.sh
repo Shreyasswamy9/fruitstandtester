@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Supabase Setup Script for FruitstandNY
+# Supabase Setup Script for NY
 # This script provides the commands to run in your Supabase dashboard
 
-echo "🚀 FruitstandNY Supabase Setup Guide"
+echo "🚀 NY Supabase Setup Guide"
 echo "======================================"
 echo ""
 

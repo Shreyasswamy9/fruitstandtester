@@ -1,5 +1,7 @@
 import { supabase } from '@/app/supabase-client';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { readCartMetadata } from '@/lib/stripeCartMetadata';
+import { generateOrderNumber } from '@/lib/orderNumbers';
+import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 
 // Helper: safe JSON parse
@@ -158,6 +160,7 @@ export interface Order {
   notes?: string;
   created_at: string;
   updated_at: string;
+  order_items?: OrderItem[];
 }
 
 export interface OrderItem {
@@ -530,12 +533,18 @@ export class SupabaseOrderService {
     const shippingDetails = (session as any).shipping_details?.address || customerDetails?.address;
 
     const metadata = session.metadata ?? {};
-    const cart = safeJsonParse<OrderCartItem[]>(metadata.cart ?? '[]', []);
+    const cartJson = readCartMetadata(metadata) ?? '[]';
+    const cart = safeJsonParse<OrderCartItem[]>(cartJson, []);
     const guestData = safeJsonParse<GuestPayload>(metadata.guest ?? '{}', {});
     const customerData = safeJsonParse<CustomerPayload>(metadata.customer ?? '{}', {});
     const shippingAmount = Number(metadata.shipping ?? 0);
-    const taxAmount = Number(metadata.tax ?? 0);
-    const orderNumber = (metadata.order_number as string) || `ORD-${Date.now()}`;
+    
+    // Use Stripe's calculated tax instead of metadata tax
+    const taxAmount = session.total_details?.amount_tax 
+      ? Number(session.total_details.amount_tax) / 100 
+      : Number(metadata.tax ?? 0);
+    
+    const orderNumber = (metadata.order_number as string) || generateOrderNumber();
 
     // Recalculate subtotal
     const cartItems = Array.isArray(cart) ? cart : [];
@@ -587,7 +596,7 @@ export class SupabaseOrderService {
     }
 
     const createdOrder = newOrder as Order;
-
+    let insertedItems: OrderItem[] = [];
     // 4. Create Order Items
     if (cartItems.length > 0) {
       const orderItemRows = cartItems.map((item) => {
@@ -611,7 +620,12 @@ export class SupabaseOrderService {
         };
       });
 
-      const { error: itemsErr } = await supabaseAdmin.from('order_items').insert(orderItemRows);
+      const { data: insertedItemsData, error: itemsErr } = await supabaseAdmin
+      .from('order_items')
+      .insert(orderItemRows)
+      .select(); // returns inserted rows
+
+      insertedItems = insertedItemsData ?? [];
 
       if (itemsErr) {
         console.error('Failed to insert order items, rolling back order', itemsErr);
@@ -622,6 +636,9 @@ export class SupabaseOrderService {
       console.log(`Inserted ${orderItemRows.length} order items for order ${createdOrder.id}`);
     }
 
-    return createdOrder;
+    return {
+      ...createdOrder,
+      order_items: insertedItems ?? [],
+    };
   }
 }

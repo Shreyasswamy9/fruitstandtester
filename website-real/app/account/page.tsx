@@ -5,6 +5,7 @@ import { supabase } from "../supabase-client";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { OrderService, TicketService } from "@/lib/services/api";
+import ProductPageBrandHeader from "@/components/ProductPageBrandHeader";
 import type { User } from "@supabase/supabase-js";
 import type { Order, OrderItem } from "@/lib/services/supabase-existing";
 
@@ -297,6 +298,7 @@ export default function AccountPage() {
   if (!isLoaded) {
     return (
       <div className="min-h-screen bg-[#fbf6f0] text-gray-900">
+        <ProductPageBrandHeader />
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-gray-200 border-t-black rounded-full animate-spin mx-auto mb-4"></div>
@@ -313,9 +315,10 @@ export default function AccountPage() {
   if (!isSignedIn) {
     return (
       <div className="min-h-screen bg-[#fbf6f0] text-gray-900">
+        <ProductPageBrandHeader />
         {/* Subtle Background Pattern */}
         <div className="fixed inset-0 opacity-10">
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-50 via-gray-100 to-gray-50"></div>
+          <div className="absolute inset-0 bg-linear-to-br from-gray-50 via-gray-100 to-gray-50"></div>
         </div>
 
         <div className="relative flex items-center justify-center min-h-screen px-4">
@@ -325,7 +328,7 @@ export default function AccountPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              <h1 className="text-4xl font-bold mb-6 bg-gradient-to-r from-gray-900 via-gray-700 to-gray-600 bg-clip-text text-transparent">
+              <h1 className="text-4xl font-bold mb-6 bg-linear-to-r from-gray-900 via-gray-700 to-gray-600 bg-clip-text text-transparent">
                 Account Access
               </h1>
               <p className="text-gray-600 mb-8 text-lg">
@@ -375,11 +378,12 @@ export default function AccountPage() {
 
   return (
     <div className="min-h-screen bg-[#fbf6f0] text-gray-900 overflow-x-hidden">
+      <ProductPageBrandHeader />
       {/* Top scroll progress bar */}
-      <div className="fixed top-0 left-0 h-1 bg-gray-900 z-[60] transition-[width] duration-150" style={{ width: `${scrollProgress}%` }} />
+      <div className="fixed top-0 left-0 h-1 bg-gray-900 z-60 transition-[width] duration-150" style={{ width: `${scrollProgress}%` }} />
       {/* Subtle Background Pattern */}
       <div className="fixed inset-0 opacity-10">
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-50 via-gray-100 to-gray-50"></div>
+        <div className="absolute inset-0 bg-linear-to-br from-gray-50 via-gray-100 to-gray-50"></div>
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-gray-200 rounded-full mix-blend-multiply filter blur-xl opacity-30"></div>
         <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-gray-300 rounded-full mix-blend-multiply filter blur-xl opacity-30"></div>
         <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-gray-100 rounded-full mix-blend-multiply filter blur-xl opacity-30"></div>
@@ -397,7 +401,7 @@ export default function AccountPage() {
             <div className="mb-6">
               <div className="relative w-24 h-24 mx-auto mb-4 flex items-center justify-center">
                 {/* Apple shape container */}
-                <div className="w-full h-full bg-gradient-to-br from-red-500 via-red-600 to-red-700 relative overflow-hidden"
+                <div className="w-full h-full bg-linear-to-br from-red-500 via-red-600 to-red-700 relative overflow-hidden"
                   style={{
                     borderRadius: '50% 50% 50% 50% / 60% 60% 40% 40%',
                     transform: 'rotate(-15deg)'
@@ -445,7 +449,7 @@ export default function AccountPage() {
             <h1 className="text-5xl md:text-6xl font-extralight tracking-wider mb-4 text-gray-900">
               Welcome back,
             </h1>
-            <p className="text-2xl md:text-3xl text-transparent bg-clip-text bg-gradient-to-r from-gray-700 via-gray-900 to-gray-600 font-light">
+            <p className="text-2xl md:text-3xl text-transparent bg-clip-text bg-linear-to-r from-gray-700 via-gray-900 to-gray-600 font-light">
               {user?.user_metadata?.full_name || user?.user_metadata?.name || 'User'}
             </p>
             <p className="text-gray-600 mt-4 text-lg">
@@ -466,7 +470,7 @@ export default function AccountPage() {
           {/* Scroll cue and hero fade */}
           {showScrollCue && (
             <>
-              <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-b from-transparent to-white"></div>
+              <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-16 bg-linear-to-b from-transparent to-white"></div>
               <div className="absolute -bottom-2 left-0 right-0 flex justify-center">
                 <div className="flex items-center gap-2 text-gray-500 animate-bounce">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -805,7 +809,7 @@ export default function AccountPage() {
                             onChange={(e) => setNotifications(prev => ({ ...prev, email: e.target.checked }))}
                             className="sr-only peer"
                           />
-                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
                       </div>
                     </div>
@@ -823,7 +827,7 @@ export default function AccountPage() {
                             onChange={(e) => setNotifications(prev => ({ ...prev, sms: e.target.checked }))}
                             className="sr-only peer"
                           />
-                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
                       </div>
                     </div>
@@ -841,7 +845,7 @@ export default function AccountPage() {
                             onChange={(e) => setNotifications(prev => ({ ...prev, marketing: e.target.checked }))}
                             className="sr-only peer"
                           />
-                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
                       </div>
                     </div>
@@ -859,7 +863,7 @@ export default function AccountPage() {
                             onChange={(e) => setNotifications(prev => ({ ...prev, orderUpdates: e.target.checked }))}
                             className="sr-only peer"
                           />
-                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                         </label>
                       </div>
                     </div>

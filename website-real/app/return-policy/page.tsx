@@ -33,7 +33,7 @@ export default function ReturnPolicyPage() {
           {/* Introduction */}
           <section className="mb-12">
             <p className="text-gray-700 leading-relaxed">
-              At FRUITSTAND, we want you to feel confident shopping with us. We&apos;re a small independent company that handles nearly everything in-house — including packaging and fulfillment — so while we aim to make returns and exchanges straightforward, we also ask for your cooperation in following the steps below.
+              At , we want you to feel confident shopping with us. We&apos;re a small independent company that handles nearly everything in-house — including packaging and fulfillment — so while we aim to make returns and exchanges straightforward, we also ask for your cooperation in following the steps below.
             </p>
           </section>
 
@@ -103,7 +103,7 @@ export default function ReturnPolicyPage() {
               </li>
               <li className="flex">
                 <span className="mr-2">•</span>
-                <span>Original shipping costs are non-refundable, including shipping costs covered by FRUITSTAND (&quot;free shipping&quot;). These costs will be deducted from the refund amount.</span>
+                <span>Original shipping costs are non-refundable, including shipping costs covered by  (&quot;free shipping&quot;). These costs will be deducted from the refund amount.</span>
               </li>
             </ul>
           </section>
@@ -133,7 +133,7 @@ export default function ReturnPolicyPage() {
               </li>
               <li className="flex">
                 <span className="mr-2">•</span>
-                <span>Tracking numbers are required for all returns. FRUITSTAND is not responsible for lost packages without proof of delivery.</span>
+                <span>Tracking numbers are required for all returns.  is not responsible for lost packages without proof of delivery.</span>
               </li>
               <li className="flex">
                 <span className="mr-2">•</span>
@@ -141,7 +141,7 @@ export default function ReturnPolicyPage() {
               </li>
             </ul>
             <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-              <p className="text-gray-900 font-semibold mb-1">FRUITSTAND<sup>®</sup> LLC – Returns Department</p>
+              <p className="text-gray-900 font-semibold mb-1"><sup>®</sup> LLC – Returns Department</p>
               <p className="text-gray-700">3730 Review Avenue, Ste 202</p>
               <p className="text-gray-700">Long Island City, NY 11101</p>
             </div>
@@ -193,7 +193,7 @@ export default function ReturnPolicyPage() {
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Chargebacks</h2>
             <p className="text-gray-700 leading-relaxed">
-              Initiating a chargeback instead of following this return process may delay resolution. FRUITSTAND reserves the right to contest chargebacks and provide proof of compliance with this Return Policy.
+              Initiating a chargeback instead of following this return process may delay resolution.  reserves the right to contest chargebacks and provide proof of compliance with this Return Policy.
             </p>
           </section>
 
@@ -214,8 +214,8 @@ export default function ReturnPolicyPage() {
                 <span className="mr-2">•</span>
                 <span>
                   Email:{" "}
-                  <a href="mailto:info@fruitstandny.com" className="text-blue-600 hover:text-blue-700">
-                    info@fruitstandny.com
+                  <a href="mailto:info@ny.com" className="text-blue-600 hover:text-blue-700">
+                    info@ny.com
                   </a>
                 </span>
               </li>
@@ -224,7 +224,7 @@ export default function ReturnPolicyPage() {
                 <span>
                   Website:{" "}
                   <Link href="/contact" className="text-blue-600 hover:text-blue-700">
-                    fruitstandny.com/contact
+                    ny.com/contact
                   </Link>
                 </span>
               </li>

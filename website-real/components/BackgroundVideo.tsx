@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
-const DEFAULT_VIDEO_SRC = process.env.NEXT_PUBLIC_BACKGROUND_VIDEO_SRC || "https://cdn.jsdelivr.net/gh/Shreyasswamy9/fruitstandNYtester/website-real/public/images/products/jackettester/jackettester.mp4";
+const DEFAULT_VIDEO_SRC = process.env.NEXT_PUBLIC_BACKGROUND_VIDEO_SRC || "https://cdn.jsdelivr.net/gh/Shreyasswamy9/NYtester/website-real/public/images/products/jackettester/jackettester.mp4";
 
 export default function BackgroundVideo({ src = DEFAULT_VIDEO_SRC }: { src?: string }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const frameRef = useRef<number | undefined>();
+  const frameRef = useRef<number | null>(null);
   const [duration, setDuration] = useState<number>(0);
   const [allowMotion, setAllowMotion] = useState<boolean>(true);
   const pathname = usePathname();
@@ -63,7 +63,7 @@ export default function BackgroundVideo({ src = DEFAULT_VIDEO_SRC }: { src?: str
   useEffect(() => {
     if (!allowMotion || !duration) return;
     const handleScroll = () => {
-      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
       frameRef.current = requestAnimationFrame(syncToScroll);
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
@@ -72,7 +72,7 @@ export default function BackgroundVideo({ src = DEFAULT_VIDEO_SRC }: { src?: str
     return () => {
       window.removeEventListener("scroll", handleScroll);
       window.removeEventListener("resize", handleScroll);
-      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
     };
   }, [duration, allowMotion]);
 

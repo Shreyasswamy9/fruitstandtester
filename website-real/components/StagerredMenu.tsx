@@ -4,16 +4,6 @@ import React, { useCallback, useLayoutEffect, useRef, useState, useEffect } from
 //import Image from 'next/image';
 import Link from 'next/link';
 import { gsap } from 'gsap';
-import { supabase } from '../app/supabase-client';
-import type { User } from '@supabase/supabase-js';
-
-// minimal shape for Supabase user metadata used in the UI
-interface SupabaseUserMetadata {
-  avatar_url?: string;
-  picture?: string;
-  full_name?: string;
-  role?: string;
-}
 
 export interface StaggeredMenuItem {
   label: string;
@@ -57,105 +47,11 @@ export const StaggeredMenu: React.FC<StaggeredMenuProps> = ({
   onMenuOpen,
   onMenuClose
 }: StaggeredMenuProps) => {
+    useEffect(() => {
+      console.log('StaggeredMenu items:', items);
+    }, [items]);
   const [open, setOpen] = useState(false);
   const openRef = useRef(false);
-
-  // Supabase user state
-  const [user, setUser] = useState<User | null>(null);
-  const userMeta = (user as unknown as { user_metadata?: SupabaseUserMetadata })?.user_metadata;
-  const isAdmin = userMeta?.role === 'admin';
-  // Resolved avatar URL (from user metadata or storage fallback)
-  const [resolvedAvatarUrl, setResolvedAvatarUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    let mounted = true;
-
-    // get current user
-    supabase.auth.getUser().then(({ data }) => {
-      if (!mounted) return;
-      setUser(data.user ?? null);
-    });
-
-    // subscribe to auth state changes
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return;
-      setUser(session?.user ?? null);
-    });
-
-    return () => {
-      mounted = false;
-      // unsubscribe shapes differ between versions of supabase-js
-      const sub = subscription as unknown as {
-        subscription?: { unsubscribe?: () => void };
-        unsubscribe?: () => void;
-      };
-      sub.subscription?.unsubscribe?.();
-      sub.unsubscribe?.();
-    };
-  }, []);
-
-  // Resolve avatar: prefer user metadata avatar_url, else attempt storage bucket fallback
-  useEffect(() => {
-    let cancelled = false;
-    async function resolveAvatar() {
-      if (!user) {
-        if (!cancelled) setResolvedAvatarUrl(null);
-        return;
-      }
-      // 1) Prefer Google-provided avatar URL from user metadata (avatar_url or picture)
-      const metaUrl = userMeta?.avatar_url || userMeta?.picture;
-      if (metaUrl) {
-        if (!cancelled) setResolvedAvatarUrl(metaUrl);
-        return;
-      }
-
-      // 2) Try identities payload for Google avatar (avatar_url or picture)
-      try {
-        const identities = (user as unknown as {
-          identities?: Array<{
-            provider?: string;
-            identity_data?: { avatar_url?: string; picture?: string };
-          }>;
-        })?.identities;
-        const googleIdentity = identities?.find((id) => id?.provider === 'google');
-        const idData = googleIdentity?.identity_data;
-        const idUrl = idData?.avatar_url || idData?.picture;
-        if (idUrl) {
-          if (!cancelled) setResolvedAvatarUrl(idUrl);
-          return;
-        }
-      } catch {
-        // ignore and fall through to storage fallback
-      }
-      // Attempt to find an uploaded profile picture in the 'users' bucket under user.id
-      try {
-        const { data, error } = await supabase.storage.from('users').list(user.id, { limit: 20 });
-        if (error || !data || !data.length) return; // nothing found
-        // Prefer a file starting with 'avatar', else first image file
-        const candidate =
-          data.find(f => /^avatar/i.test(f.name)) ||
-          data.find(f => /\.(png|jpg|jpeg|webp)$/i.test(f.name));
-        if (!candidate) return;
-        const path = `${user.id}/${candidate.name}`;
-        // Prefer a signed URL to work with private buckets; fall back to public URL if signing fails
-        const { data: signed, error: signErr } = await supabase.storage.from('users').createSignedUrl(path, 60 * 60);
-        if (!cancelled) {
-          if (!signErr && signed?.signedUrl) {
-            setResolvedAvatarUrl(signed.signedUrl);
-          } else {
-            const { data: pub } = supabase.storage.from('users').getPublicUrl(path);
-            if (pub?.publicUrl) setResolvedAvatarUrl(pub.publicUrl);
-          }
-        }
-      } catch {
-        // silent; fallback stays null
-      }
-    }
-    resolveAvatar();
-    return () => { cancelled = true; };
-  }, [user, userMeta?.avatar_url, userMeta?.picture]);
-
-  // (Google OAuth is handled on the /signin page using @supabase/auth-ui-react)
 
   const panelRef = useRef<HTMLDivElement | null>(null);
   const preLayersRef = useRef<HTMLDivElement | null>(null);
@@ -199,15 +95,17 @@ export const StaggeredMenu: React.FC<StaggeredMenuProps> = ({
       preLayerElsRef.current = preLayers;
 
       const offscreen = position === 'left' ? -100 : 100;
-      gsap.set([panel, ...preLayers], { xPercent: offscreen });
+      gsap.set([panel, ...preLayers], { xPercent: offscreen, visibility: 'visible' });
+      
+      if (preContainer) {
+        gsap.set(preContainer, { visibility: 'visible' });
+      }
 
       gsap.set(plusH, { transformOrigin: '50% 50%', rotate: 0 });
       gsap.set(plusV, { transformOrigin: '50% 50%', rotate: 90 });
       gsap.set(icon, { rotate: 0, transformOrigin: '50% 50%' });
 
       gsap.set(textInner, { yPercent: 0 });
-
-      if (toggleBtnRef.current) gsap.set(toggleBtnRef.current, { color: menuButtonColor });
     });
     return () => ctx.revert();
   }, [menuButtonColor, position]);
@@ -383,26 +281,11 @@ export const StaggeredMenu: React.FC<StaggeredMenuProps> = ({
       const btn = toggleBtnRef.current;
       if (!btn) return;
       colorTweenRef.current?.kill();
-      if (changeMenuColorOnOpen) {
-        const targetColor = opening ? openMenuButtonColor : menuButtonColor;
-        colorTweenRef.current = gsap.to(btn, { color: targetColor, delay: 0.18, duration: 0.3, ease: 'power2.out' });
-      } else {
-        gsap.set(btn, { color: menuButtonColor });
-      }
     },
     [openMenuButtonColor, menuButtonColor, changeMenuColorOnOpen]
   );
 
-  React.useEffect(() => {
-    if (toggleBtnRef.current) {
-      if (changeMenuColorOnOpen) {
-        const targetColor = openRef.current ? openMenuButtonColor : menuButtonColor;
-        gsap.set(toggleBtnRef.current, { color: targetColor });
-      } else {
-        gsap.set(toggleBtnRef.current, { color: menuButtonColor });
-      }
-    }
-  }, [changeMenuColorOnOpen, menuButtonColor, openMenuButtonColor]);
+
 
   const animateText = useCallback((opening: boolean) => {
     const inner = textInnerRef.current;
@@ -464,8 +347,9 @@ export const StaggeredMenu: React.FC<StaggeredMenuProps> = ({
       >
         <div
           ref={preLayersRef}
-          className="sm-prelayers absolute top-0 right-0 bottom-0 pointer-events-none z-[5]"
+          className="sm-prelayers absolute top-0 right-0 bottom-0 pointer-events-none z-5"
           aria-hidden="true"
+          style={{ visibility: 'hidden' }}
         >
           {(() => {
             const raw = colors && colors.length ? colors.slice(0, 4) : ['#1e1e22', '#35353c'];
@@ -485,13 +369,14 @@ export const StaggeredMenu: React.FC<StaggeredMenuProps> = ({
         </div>
 
         <header
-          className="staggered-menu-header absolute top-0 left-0 w-full flex items-center justify-end p-[2em] bg-transparent pointer-events-none z-50"
+          className="staggered-menu-header absolute top-0 left-0 w-full flex items-center justify-end pt-[2.5em] pr-[2em] pb-[2em] pl-[2em] bg-transparent pointer-events-none z-50"
           aria-label="Main navigation header"
         >
 
           <button
             ref={toggleBtnRef}
-            className="sm-toggle relative inline-flex items-center gap-[0.3rem] bg-transparent border-0 cursor-pointer text-[#e9e9ef] font-medium leading-none overflow-visible pointer-events-auto"
+            className="sm-toggle relative inline-flex items-center gap-[0.3rem] bg-transparent border-0 cursor-pointer font-medium leading-none overflow-visible pointer-events-auto"
+            style={{ color: menuButtonColor }}
             aria-label={open ? 'Close menu' : 'Open menu'}
             aria-expanded={open}
             aria-controls="staggered-menu-panel"
@@ -500,7 +385,7 @@ export const StaggeredMenu: React.FC<StaggeredMenuProps> = ({
           >
             <span
               ref={textWrapRef}
-              className="sm-toggle-textWrap relative inline-block h-[1em] overflow-hidden whitespace-nowrap w-[var(--sm-toggle-width,auto)] min-w-[var(--sm-toggle-width,auto)]"
+              className="sm-toggle-textWrap relative inline-block h-[1em] overflow-hidden whitespace-nowrap w-(--sm-toggle-width,auto) min-w-(--sm-toggle-width,auto)"
               aria-hidden="true"
             >
               <span ref={textInnerRef} className="sm-toggle-textInner flex flex-col leading-none">
@@ -514,16 +399,16 @@ export const StaggeredMenu: React.FC<StaggeredMenuProps> = ({
 
             <span
               ref={iconRef}
-              className="sm-icon relative w-[14px] h-[14px] shrink-0 inline-flex items-center justify-center [will-change:transform]"
+              className="sm-icon relative w-3.5 h-3.5 shrink-0 inline-flex items-center justify-center will-change-transform"
               aria-hidden="true"
             >
               <span
                 ref={plusHRef}
-                className="sm-icon-line absolute left-1/2 top-1/2 w-full h-[2px] bg-current rounded-[2px] -translate-x-1/2 -translate-y-1/2 [will-change:transform]"
+                className="sm-icon-line absolute left-1/2 top-1/2 w-full h-0.5 bg-current rounded-xs -translate-x-1/2 -translate-y-1/2 will-change-transform"
               />
               <span
                 ref={plusVRef}
-                className="sm-icon-line sm-icon-line-v absolute left-1/2 top-1/2 w-full h-[2px] bg-current rounded-[2px] -translate-x-1/2 -translate-y-1/2 [will-change:transform]"
+                className="sm-icon-line sm-icon-line-v absolute left-1/2 top-1/2 w-full h-0.5 bg-current rounded-xs -translate-x-1/2 -translate-y-1/2 will-change-transform"
               />
             </span>
           </button>
@@ -532,66 +417,15 @@ export const StaggeredMenu: React.FC<StaggeredMenuProps> = ({
         <aside
           id="staggered-menu-panel"
           ref={panelRef}
-          className="staggered-menu-panel absolute top-0 right-0 h-full bg-white flex flex-col p-[6em_2em_4.5em_2em] overflow-y-auto z-50 backdrop-blur-[12px]"
-          style={{ WebkitBackdropFilter: 'blur(12px)', paddingBottom: 'calc(4.5rem + env(safe-area-inset-bottom, 0px))' }}
+          className="staggered-menu-panel absolute top-0 right-0 h-full bg-white flex flex-col p-[6em_2em_4.5em_2em] overflow-y-auto z-50 backdrop-blur-md"
+          style={{ 
+            WebkitBackdropFilter: 'blur(12px)', 
+            paddingBottom: 'calc(4.5rem + env(safe-area-inset-bottom, 0px))',
+            visibility: 'hidden'
+          }}
           aria-hidden={!open}
         >
           <div className="sm-panel-inner flex-1 flex flex-col gap-5 pt-6">
-            {/* Authentication Section */}
-            <div className="mb-8">
-              {user ? (
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-center gap-4">
-                    {resolvedAvatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={resolvedAvatarUrl}
-                        alt="profile avatar"
-                        className="w-10 h-10 rounded-full object-cover"
-                        onError={() => setResolvedAvatarUrl(null)}
-                      />
-                    ) : (
-                      <div className="w-10 h-10 bg-gray-200 rounded-full" aria-label="No profile photo" />
-                    )}
-                    <span className="text-lg font-medium">{userMeta?.full_name || user?.email || 'Welcome'}</span>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {isAdmin && (
-                      <Link
-                        href="/admin"
-                        className="text-gray-700 hover:text-black transition-colors"
-                        onClick={() => {
-                          if (openRef.current) {
-                            toggleMenu();
-                          }
-                        }}
-                      >
-                        Admin Dashboard
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-3 mb-6">
-                  <Link
-                    href="/signin"
-                    onClick={() => { if (openRef.current) toggleMenu(); }}
-                    className="w-full inline-flex items-center justify-center py-2 px-4 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
-                    aria-label="Sign in to your account"
-                  >
-                    Sign In
-                  </Link>
-                  <Link
-                    href="/signup"
-                    onClick={() => { if (openRef.current) toggleMenu(); }}
-                    className="w-full inline-flex items-center justify-center py-2 px-4 border-2 border-black text-black rounded-lg hover:bg-gray-100 transition-colors"
-                    aria-label="Create a new account"
-                  >
-                    Sign Up
-                  </Link>
-                </div>
-              )}
-            </div>
             <ul
               className="sm-panel-list list-none m-0 p-0 flex flex-col gap-2"
               role="list"
@@ -612,7 +446,7 @@ export const StaggeredMenu: React.FC<StaggeredMenuProps> = ({
                         }
                       }}
                     >
-                      <span className="sm-panel-itemLabel inline-block [transform-origin:50%_100%] will-change-transform">
+                      <span className="sm-panel-itemLabel inline-block origin-[50%_100%] will-change-transform">
                         {it.label}
                       </span>
                     </Link>
@@ -621,7 +455,7 @@ export const StaggeredMenu: React.FC<StaggeredMenuProps> = ({
               ) : (
                 <li className="sm-panel-itemWrap relative overflow-hidden leading-none" aria-hidden="true">
                   <span className="sm-panel-item relative text-black font-semibold text-[4rem] cursor-pointer leading-none tracking-[-2px] uppercase transition-[background,color] duration-150 ease-linear inline-block no-underline pr-[1.8rem]">
-                    <span className="sm-panel-itemLabel inline-block [transform-origin:50%_100%] will-change-transform">
+                    <span className="sm-panel-itemLabel inline-block origin-[50%_100%] will-change-transform">
                       No items
                     </span>
                   </span>
@@ -631,7 +465,7 @@ export const StaggeredMenu: React.FC<StaggeredMenuProps> = ({
 
             {displaySocials && socialItems && socialItems.length > 0 && (
               <div className="sm-socials mt-auto pt-8 flex flex-col gap-3" aria-label="Social links">
-                <h3 className="sm-socials-title m-0 text-base font-medium [color:var(--sm-accent,#f97316)]">Socials</h3>
+                <h3 className="sm-socials-title m-0 text-base font-medium text-(--sm-accent,#f97316)">Socials</h3>
                 <ul
                   className="sm-socials-list list-none m-0 p-0 flex flex-row items-center gap-4 flex-wrap"
                   role="list"
@@ -642,7 +476,7 @@ export const StaggeredMenu: React.FC<StaggeredMenuProps> = ({
                         href={s.link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="sm-socials-link text-[1.2rem] font-medium text-[#111] no-underline relative inline-block py-[2px] transition-[color,opacity] duration-300 ease-linear"
+                        className="sm-socials-link text-[1.2rem] font-medium text-[#111] no-underline relative inline-block py-0.5 transition-[color,opacity] duration-300 ease-linear"
                       >
                         {s.label}
                       </a>

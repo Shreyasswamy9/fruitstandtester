@@ -128,10 +128,14 @@ export default function BundleSheet({ open, onClose, bundles = defaultBundles, p
     }
   }, [open])
   useEffect(() => {
-    if (open) {
-      setSelectedId(prev => prev ?? (initialSelectedId ?? bundles[0]?.id ?? null))
-      setTab(initialTab ?? 'curated')
+    if (!open) return
+    const hasInitial = typeof initialSelectedId === 'string' && initialSelectedId.length > 0
+    if (hasInitial) {
+      setSelectedId(initialSelectedId)
+    } else {
+      setSelectedId(prev => prev ?? (bundles[0]?.id ?? null))
     }
+    setTab(initialTab ?? 'curated')
   }, [open, bundles, initialSelectedId, initialTab])
 
   useEffect(() => {
@@ -194,7 +198,7 @@ export default function BundleSheet({ open, onClose, bundles = defaultBundles, p
             animate={{ opacity: 0.5 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[11000] bg-black/70 backdrop-blur-sm"
+            className="fixed inset-0 z-11000 bg-black/70 backdrop-blur-sm"
             onClick={onClose}
           />
 
@@ -205,10 +209,10 @@ export default function BundleSheet({ open, onClose, bundles = defaultBundles, p
             exit={{ y: 300 }}
             transition={{ type: 'spring', stiffness: 320, damping: 30 }}
             role="dialog" aria-modal="true" aria-label="Bundle deals"
-            className="fixed inset-x-0 bottom-0 z-[11001] max-h-[75vh] bg-white rounded-t-[28px] shadow-2xl flex flex-col border border-black/5 overflow-y-auto"
+            className="fixed inset-x-0 bottom-0 z-11001 max-h-[75vh] bg-white rounded-t-[28px] shadow-2xl flex flex-col border border-black/5 overflow-y-auto"
           >
             {/* Header */}
-            <div className="sticky top-0 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70 border-b border-gray-100 rounded-t-[28px]">
+            <div className="sticky top-0 bg-white/90 backdrop-blur supports-backdrop-filter:bg-white/70 border-b border-gray-100 rounded-t-[28px]">
               <div className="px-5 pt-4 pb-3">
                 <div className="flex items-center justify-between">
                   <div>
@@ -495,21 +499,23 @@ export default function BundleSheet({ open, onClose, bundles = defaultBundles, p
             <div className="sticky bottom-0 bg-white border-t border-gray-200 px-5 py-3 rounded-t-2xl">
               {tab === 'curated' ? (
                 <div className="flex gap-3">
-                  <button
-                    onClick={() => { const b = bundles.find(x => x.id === selectedId) || bundles[0]; if (b) addCuratedToCart(b) }}
-                    disabled={adding || !bundles.length}
-                    className={`flex-1 py-3 rounded-xl text-white font-medium shadow-md active:opacity-90 ${adding ? 'bg-green-600' : 'bg-black'}`}
-                  >{adding ? 'Added!' : 'Add selected bundle'}</button>
                   <button onClick={onClose} className="px-4 py-3 rounded-xl border border-gray-300 text-gray-700">Close</button>
+                  <button
+                    disabled
+                    className="flex-1 py-3 rounded-xl bg-gray-300 text-gray-500 font-medium shadow-md cursor-not-allowed"
+                  >
+                    Add to cart (disabled)
+                  </button>
                 </div>
               ) : (
                 <div className="flex gap-3 items-center">
-                  <button
-                    onClick={addCustomToCart}
-                    disabled={!canAddCustom || adding}
-                    className={`flex-1 py-3 rounded-xl text-white font-medium shadow-md ${canAddCustom && !adding ? 'bg-black' : 'bg-gray-400'}`}
-                  >{adding ? 'Adding…' : `Add ${comboSize} tee bundle – ${formatPrice(CUSTOM_BUNDLE_PRICES[comboSize])}`}</button>
                   <button onClick={onClose} className="px-4 py-3 rounded-xl border border-gray-300 text-gray-700">Close</button>
+                  <button
+                    disabled
+                    className="flex-1 py-3 rounded-xl bg-gray-300 text-gray-500 font-medium shadow-md cursor-not-allowed"
+                  >
+                    Add to cart (disabled)
+                  </button>
                 </div>
               )}
             </div>

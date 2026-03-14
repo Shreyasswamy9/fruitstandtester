@@ -21,6 +21,20 @@ interface Props {
 const LIGHT_COLORS = ['#ffffff','#f9fafb','#fafbfc','#f5f5f5'];
 
 export default function ColorPicker({ options, selectedName, onSelect, showLabel = true }: Props) {
+  if (!options?.length) {
+    return null;
+  }
+
+  if (options.length === 1) {
+    return showLabel ? (
+      <div className="mb-6">
+        <p className="text-sm font-medium text-gray-700">
+          Color: <span className="font-semibold text-gray-900">{options[0].name}</span>
+        </p>
+      </div>
+    ) : null;
+  }
+
   const selected = options.find(o => o.name === selectedName) || options[0];
   return (
     <div className="mb-6">

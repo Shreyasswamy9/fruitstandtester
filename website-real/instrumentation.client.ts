@@ -1,6 +1,7 @@
 "use client"
 
 import posthog from "posthog-js"
+import { registerPosthogInternalUser } from "@/lib/analytics/internal-device"
 
 const POSTHOG_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY
 const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://app.posthog.com"
@@ -15,6 +16,11 @@ export const ensurePosthog = () => {
     persistence: "memory",
   })
   posthogInitialized = true
+
+  // [POSTHOG: REGISTER/UNREGISTER internal_user]
+  // Syncs window.INTERNAL_USER (set by the bootstrap script) to PostHog
+  // super-properties so that every subsequent PostHog event carries the flag.
+  registerPosthogInternalUser(posthog)
 }
 
 export const captureEvent = (name: string, properties?: Record<string, unknown>) => {

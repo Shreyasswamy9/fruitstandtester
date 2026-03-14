@@ -4,8 +4,26 @@ import { motion } from "framer-motion"
 import Link from "next/link"
 
 export default function PrivacyPolicyPage() {
+  const policies = [
+    { label: "Privacy Policy", link: "/privacy-policy" },
+    { label: "Return Policy", link: "/return-policy" },
+    { label: "Cookie Policy", link: "/cookie-policy" },
+    { label: "Terms & Conditions", link: "/terms-and-conditions" }
+  ];
   return (
-  <div className="min-h-screen bg-[#fbf6f0]">
+    <div className="min-h-screen bg-[#fbf6f0]">
+      {/* Policy Selector - Always Visible */}
+      <div className="w-full max-w-2xl mx-auto pt-12 pb-4 px-4 sticky top-0 z-30 bg-[#fbf6f0]">
+        <h1 className="text-[2rem] font-black uppercase tracking-[0.08em] text-[#1d1c19] mb-6 text-center font-avenir-black">Select a Policy</h1>
+        <div className="flex flex-wrap gap-4 justify-center mb-8">
+          {policies.map((policy) => (
+            <Link href={policy.link} key={policy.label} className="rounded-lg border border-[#1d1c19]/15 bg-white shadow-sm hover:shadow-lg transition-shadow px-6 py-3 font-black uppercase tracking-[0.08em] text-[#1d1c19] hover:text-[#5227FF] font-avenir-black">
+              {policy.label}
+            </Link>
+          ))}
+        </div>
+      </div>
+      {/* ...existing page content... */}
       {/* Header */}
       <div className="bg-gray-50 border-b pt-20 sm:pt-6">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -21,8 +39,7 @@ export default function PrivacyPolicyPage() {
           </p>
         </div>
       </div>
-
-      {/* Content */}
+      {/* ...existing page content... */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -41,14 +58,14 @@ export default function PrivacyPolicyPage() {
               <li>We keep data as long as needed for business/legal reasons unless you ask us to delete it.</li>
               <li>Your rights (like under CCPA/GDPR) include access, deletion, and opt-outs.</li>
               <li>Kids under 13 (or 16 in some places) can&apos;t use our services.</li>
-              <li>Disputes or requests? Email info@fruitstandny.com or legal@fruitstandny.com.</li>
+              <li>Disputes or requests? Email info@ny.com or legal@ny.com.</li>
             </ul>
           </section>
 
           {/* Introduction */}
           <section className="mb-8">
             <p className="text-gray-700 leading-relaxed mb-4">
-              This Privacy Policy explains how FRUITSTAND® LLC (&quot;FRUITSTAND,&quot; &quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) collects, uses, and shares your personal information when you interact with us online or offline, and the rights and choices you have regarding that information.
+              This Privacy Policy explains how ® LLC (&quot;,&quot; &quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) collects, uses, and shares your personal information when you interact with us online or offline, and the rights and choices you have regarding that information.
             </p>
             <p className="text-gray-700 leading-relaxed">
               By using our website, services, in-person events, or participating in our programs, you agree to the collection and use of your information as described in this Policy.
@@ -58,19 +75,19 @@ export default function PrivacyPolicyPage() {
           {/* Company Information */}
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Company Information</h2>
-            <p className="text-gray-700 leading-relaxed mb-3">{<>FRUITSTAND<sup>®</sup> LLC is a New York limited liability company with:</>}</p>
+            <p className="text-gray-700 leading-relaxed mb-3">{<><sup>®</sup> LLC is a New York limited liability company with:</>}</p>
             <ul className="list-disc pl-6 space-y-2 text-gray-700 mb-3">
               <li><strong>Registered Address (Articles of Organization):</strong> 45 West 60th Street, New York, NY 10023</li>
               <li><strong>Operating Address:</strong> 3730 Review Avenue, Long Island City, NY 11101</li>
             </ul>
             <p className="text-gray-700 leading-relaxed">
               You can contact us at{" "}
-              <a href="mailto:info@fruitstandny.com" className="text-blue-600 hover:text-blue-700">
-                info@fruitstandny.com
+              <a href="mailto:info@ny.com" className="text-blue-600 hover:text-blue-700">
+                info@ny.com
               </a>{" "}
               or{" "}
-              <a href="mailto:legal@fruitstandny.com" className="text-blue-600 hover:text-blue-700">
-                legal@fruitstandny.com
+              <a href="mailto:legal@ny.com" className="text-blue-600 hover:text-blue-700">
+                legal@ny.com
               </a>.
             </p>
           </section>
@@ -80,10 +97,10 @@ export default function PrivacyPolicyPage() {
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Scope</h2>
             <p className="text-gray-700 leading-relaxed mb-3">This Policy applies to:</p>
             <ul className="list-disc pl-6 space-y-2 text-gray-700">
-              <li>Our website at fruitstandny.com</li>
+              <li>Our website at ny.com</li>
               <li>SMS and email marketing campaigns</li>
               <li>In-person events, retail activations, and pop-ups</li>
-              <li>The FRUITSTAND Campus Ambassadors program</li>
+              <li>The  Campus Ambassadors program</li>
               <li>Social media channels where we collect or process data</li>
             </ul>
           </section>
@@ -122,7 +139,7 @@ export default function PrivacyPolicyPage() {
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Marketing & SMS Consent</h2>
             <p className="text-gray-700 leading-relaxed mb-4">
-              This Privacy Policy explains how FRUITSTAND<sup>®</sup> LLC (&ldquo;FRUITSTAND,&rdquo; &ldquo;we,&rdquo; &ldquo;our,&rdquo; or &ldquo;us&rdquo;) collects, uses, and shares your personal information when you interact with us online or offline, and the rights and choices you have regarding that information.
+              This Privacy Policy explains how <sup>®</sup> LLC (&ldquo;,&rdquo; &ldquo;we,&rdquo; &ldquo;our,&rdquo; or &ldquo;us&rdquo;) collects, uses, and shares your personal information when you interact with us online or offline, and the rights and choices you have regarding that information.
             </p>
             <ul className="list-disc pl-6 space-y-2 text-gray-700 mb-3">
               <li>Message frequency varies</li>
@@ -205,8 +222,8 @@ export default function PrivacyPolicyPage() {
             </p>
             <p className="text-gray-700 leading-relaxed">
               <strong>Requests:</strong>{" "}
-              <a href="mailto:legal@fruitstandny.com" className="text-blue-600 hover:text-blue-700">
-                legal@fruitstandny.com
+              <a href="mailto:legal@ny.com" className="text-blue-600 hover:text-blue-700">
+                legal@ny.com
               </a>
             </p>
           </section>
@@ -249,18 +266,18 @@ export default function PrivacyPolicyPage() {
             <p className="text-gray-700 leading-relaxed mb-3"><strong>Questions?</strong></p>
             <p className="text-gray-700 leading-relaxed mb-2">
               Email:{" "}
-              <a href="mailto:info@fruitstandny.com" className="text-blue-600 hover:text-blue-700">
-                info@fruitstandny.com
+              <a href="mailto:info@ny.com" className="text-blue-600 hover:text-blue-700">
+                info@ny.com
               </a>{" "}
               or{" "}
-              <a href="mailto:legal@fruitstandny.com" className="text-blue-600 hover:text-blue-700">
-                legal@fruitstandny.com
+              <a href="mailto:legal@ny.com" className="text-blue-600 hover:text-blue-700">
+                legal@ny.com
               </a>
             </p>
             <p className="text-gray-700 leading-relaxed">
               Website:{" "}
               <Link href="/contact" className="text-blue-600 hover:text-blue-700">
-                fruitstandny.com/contact
+                ny.com/contact
               </Link>
             </p>
           </section>

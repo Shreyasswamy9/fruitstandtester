@@ -10,23 +10,25 @@ export default function LogoButton() {
   if (hideLogo) return null
   const logoSize = 120
   
-  // On click, clear introPlayed so rotator plays again
+  // On click, clear introPlayed so intro plays again
   const handleLogoClick = () => {
     if (typeof window !== 'undefined') {
       window.sessionStorage.removeItem('introPlayed');
+      // Dispatch a custom event to notify the homepage
+      window.dispatchEvent(new Event('introReset'));
     }
   };
   
   return (
     <Link
       href="/"
-      aria-label="FRUITSTAND® home"
-      title="FRUITSTAND®"
+      aria-label="® home"
+      title="®"
       onClick={handleLogoClick}
       style={{
-        position: 'fixed',
-  top: '4px',
-        left: '9px',
+          position: 'fixed',
+          top: '-15px',
+        left: '1px',
         zIndex: 10010,
         display: 'inline-flex',
         alignItems: 'flex-start',
@@ -60,7 +62,7 @@ export default function LogoButton() {
       <div style={{ position: 'relative', width: '100%', height: '100%' }}>
         <Image
           src="/images/newlogo.png"
-          alt="FRUITSTAND® Logo"
+          alt="® Logo"
           fill
           unoptimized
           draggable={false}

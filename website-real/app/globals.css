@@ -1,6 +1,6 @@
 @font-face {
-  font-family: 'Fruitstand Light';
-  src: url('/fonts/Fruitstand Light.ttf') format('truetype');
+  font-family: ' Light';
+  src: url('/fonts/ Light.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -14,8 +14,34 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: 'Avenir Black';
+  src: url('/fonts/Avenir Black.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Avenir Light';
+  src: url('/fonts/Avenir Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
 html, body, * {
-  font-family: 'Avenir LT 55', 'Fruitstand Light', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif !important;
+  font-family: 'Avenir LT 55', ' Light', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif !important;
+}
+
+.font-avenir-black {
+  font-family: 'Avenir Black', 'Avenir LT 55', ' Light', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif !important;
+  font-weight: 900;
+}
+
+.font-avenir-light {
+  font-family: 'Avenir Light', 'Avenir LT 55', ' Light', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif !important;
+  font-weight: 300;
 }
 html, body {
   background-color: #fbf6f0;
@@ -419,4 +445,9 @@ html, body {
 /* Ensure bundle sheet scrolling on iOS is smooth */
 .bundle-sheet-scroll {
   -webkit-overflow-scrolling: touch;
+}
+
+body.product-page-uppercase,
+body.product-page-uppercase * {
+  text-transform: uppercase !important;
 }

@@ -1,41 +1,29 @@
 "use client";
+import Link from "next/link";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Image from "next/image";
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useCart } from "../../../components/CartContext";
 import SizeGuide from "@/components/SizeGuide";
-import BundleSheet from '@/components/BundleSheet'
-import CustomerReviews from "@/components/CustomerReviews";
-import FrequentlyBoughtTogether, { getFBTForPage } from "@/components/FrequentlyBoughtTogether";
-import ColorPicker from '@/components/ColorPicker';
+import { getFBTForPage } from "@/components/FrequentlyBoughtTogether";
+import ProductPageBrandHeader from "@/components/ProductPageBrandHeader";
+import ProductPurchaseBar, { PurchaseSizeOption, PurchaseColorOption } from "@/components/ProductPurchaseBar";
+import ProductImageGallery, { type ProductImageGalleryOption } from "@/components/ProductImageGallery";
+import { useTrackProductView } from "@/hooks/useTrackProductView";
+import StPatsBanner, { StPatsNudge } from "@/components/StPatsBanner";
+import { isGreenColorOnSale, getStPatsPrice, isStPatsDayActive } from "@/lib/stPatricksDay";
+import { useSurveyMode } from "@/hooks/useSurveyMode";
 
-// Color-specific image sets (kept explicit for clarity and to avoid client fs access)
-const COLOR_IMAGE_MAP: Record<string, string[]> = {
-  'broadway-noir': [
-    '/images/products/gala-tshirt/broadwaynoir/GN4.png',
-    '/images/products/gala-tshirt/broadwaynoir/GN5.png'
-  ],
-  'sutton-place-snow': [
-    '/images/products/gala-tshirt/suttonplacesnow/GN6.png',
-    '/images/products/gala-tshirt/suttonplacesnow/GN11.png'
-  ],
-  'grasshopper': [
-    '/images/products/gala-tshirt/Grasshopper/GN3.png',
-    '/images/products/gala-tshirt/Grasshopper/GN8.png'
-  ],
-  'frosted-lemonade': [
-    '/images/products/gala-tshirt/frostedlemonade/GN9.png',
-    '/images/products/gala-tshirt/frostedlemonade/GN10.png'
-  ],
-  'ruby-red': [
-    '/images/products/gala-tshirt/ruby red/GN.png',
-    '/images/products/gala-tshirt/ruby red/GN7.png'
-  ],
-  'italian-ice': [
-    '/images/products/gala-tshirt/italianice/GN1.png',
-    '/images/products/gala-tshirt/italianice/GN2.png'
-  ]
-};
+function formatText(text: string, productName: string, colorNames: string[]): string {
+  let lower = text.toLowerCase();
+  const nameRegex = new RegExp(productName, "gi");
+  lower = lower.replace(nameRegex, productName.toUpperCase());
+  colorNames.forEach(color => {
+    const colorRegex = new RegExp(color, "gi");
+    lower = lower.replace(colorRegex, color.toUpperCase());
+  });
+  lower = lower.replace(/(?:^|[.!?]\s+)([a-z])/g, (match) => match.toUpperCase());
+  return lower;
+}
 
 const PRODUCT = {
   name: "Gala Tee",
@@ -46,7 +34,8 @@ const PRODUCT = {
     "Oversized, loose silhouette",
     "Breathable and soft for everyday wear",
     "Made in Portugal",
-    "Ships with a custom FRUITSTAND sticker printed in NYC",
+    "Ships with a custom  sticker printed in NYC",
+    "Quality guaranteed, Free returns."
   ],
 };
 
@@ -71,28 +60,49 @@ const GALA_COLOR_OPTIONS: GalaColorOption[] = [
 const SIZE_OPTIONS = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"] as const;
  
 export default function GalaTshirtPage() {
+  const isSurveyMode = useSurveyMode();
   const [selectedColor, setSelectedColor] = useState<GalaColorOption>(GALA_COLOR_OPTIONS[0]);
   const [selectedImage, setSelectedImage] = useState(GALA_COLOR_OPTIONS[0].images[0]);
-  // read query params at runtime inside effect to avoid prerender/suspense issues
-  const { addToCart, items } = useCart();
-  const [showPopup, setShowPopup] = useState(false);
-  const [bundleOpen, setBundleOpen] = useState(false);
-  const router = useRouter();
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const { addToCart } = useCart();
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
+
+  useTrackProductView({
+    productId: "16eab132-c3a5-4b1c-88b5-1a82cbcd90de",
+    productName: PRODUCT.name,
+    price: PRODUCT.price,
+    currency: "USD",
+    selectedVariant: {
+      color: selectedColor.name,
+      sku: selectedColor.slug,
+    },
+  });
+
+  const handleSelectColor = useCallback((option: GalaColorOption, ctx?: { image?: string }) => {
+    setSelectedColor(option);
+    setSelectedImage(prev => ctx?.image ?? option.images?.[0] ?? prev);
+    setCurrentImageIndex(0);
+    if (typeof window !== 'undefined') {
+      const basePath = window.location.pathname.split('?')[0];
+      const query = option.slug ? `?color=${option.slug}` : '';
+      window.history.replaceState(null, '', `${basePath}${query}`);
+    }
+  }, []);
+
+  const stPatsSalePrice = getStPatsPrice("gala-tshirt", PRODUCT.price, selectedColor.slug);
+  const isOnStPats = isGreenColorOnSale("gala-tshirt", selectedColor.slug);
 
   const handleAddToCart = () => {
     if (!selectedSize) return;
     addToCart({
-      productId: "gala-tshirt",
+      productId: "16eab132-c3a5-4b1c-88b5-1a82cbcd90de",
       name: PRODUCT.name,
-      price: PRODUCT.price,
+      price: isOnStPats ? stPatsSalePrice : PRODUCT.price,
       image: selectedImage,
       quantity: 1,
       size: selectedSize,
       color: selectedColor.name,
     });
-    setShowPopup(true);
-    setTimeout(() => setShowPopup(false), 1500);
   };
 
   // Preselect variant via query param (?color=slug) — done at runtime only
@@ -100,148 +110,212 @@ export default function GalaTshirtPage() {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const colorSlug = params.get('color');
-    if (colorSlug) {
-      const found = GALA_COLOR_OPTIONS.find(c => c.slug === colorSlug);
-      if (found) {
-        setSelectedColor(found);
-        setSelectedImage(found.images[0]);
-      }
+    if (!colorSlug) return;
+    const found = GALA_COLOR_OPTIONS.find(c => c.slug === colorSlug);
+    if (found && found.slug !== selectedColor.slug) {
+      handleSelectColor(found);
     }
-  }, []);
+  }, [handleSelectColor, selectedColor.slug]);
 
   const boughtTogetherItems = getFBTForPage('gala-tshirt');
 
-  const handleAddBoughtTogetherItem = (item: { id: string; name: string; price: number; image: string }) => {
-    addToCart({ productId: item.id, name: item.name, price: item.price, image: item.image, quantity: 1, size: "M" });
-    setShowPopup(true);
-    setTimeout(() => setShowPopup(false), 1500);
-  };
+  const sizeOptions: PurchaseSizeOption[] = useMemo(
+    () => SIZE_OPTIONS.map((size) => ({ value: size, label: size })),
+    []
+  );
 
-  const handleAddAllToCart = () => {
-    boughtTogetherItems.forEach(item => addToCart({ productId: item.id, name: item.name, price: item.price, image: item.image, quantity: 1, size: "M" }));
-    setShowPopup(true);
-    setTimeout(() => setShowPopup(false), 1500);
-  };
-
-  const taskbarHeight = items.length > 0 && !showPopup ? 64 : 0;
-
-  
+  const colorOptions: PurchaseColorOption[] = useMemo(
+    () => GALA_COLOR_OPTIONS.map((option) => ({
+      value: option.slug,
+      label: option.name,
+      swatch: option.color,
+      border: option.border,
+    })),
+    []
+  );
 
   return (
     <div>
-      <span
-        onClick={(e) => { e.preventDefault(); e.stopPropagation(); try { router.back(); } catch { window.history.back(); } }}
-        style={{ position: 'fixed', top: 24, left: '50%', transform: 'translateX(-50%)', fontSize: 16, color: '#232323', cursor: 'pointer', fontWeight: 500, zIndex: 10005, userSelect: 'none', background: 'rgba(255, 255, 255, 0.9)', border: '1px solid #e0e0e0', borderRadius: '20px', padding: '8px 16px', textDecoration: 'none', backdropFilter: 'blur(10px)', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', transition: 'all 0.2s ease', pointerEvents: 'auto' }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 1)'; e.currentTarget.style.transform = 'translateX(-50%) translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.9)'; e.currentTarget.style.transform = 'translateX(-50%) translateY(0px)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)'; }}
-      >
-        ← Go Back
-      </span>
+      <ProductPageBrandHeader />
 
-  <div className="flex flex-col md:flex-row items-start gap-8 max-w-4xl mx-auto py-12 px-4" style={{ paddingBottom: taskbarHeight, paddingTop: 120 }}>
-        {/* Images */}
-        <div className="flex w-full md:w-1/2 flex-col items-center gap-4 shrink-0">
-          <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-[#fbf6f0] shadow-sm shrink-0">
-            <Image
-              src={selectedImage}
-              alt={PRODUCT.name}
-              fill
-              className="object-contain bg-[#fbf6f0]"
+      <main className="bg-[#fbf5ed] pb-15 pt-16 md:pt-20 lg:pt-24">
+        {/* HERO SECTION - Top 75% */}
+        <div className="mx-auto w-full max-w-7xl px-6 text-center lg:px-12 lg:text-left lg:grid lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] lg:items-start lg:gap-14" style={{ minHeight: '75vh' }}>
+          {/* IMAGE */}
+          <div className="relative mx-auto aspect-4/5 w-full lg:mx-0 lg:max-w-155 lg:row-span-3">
+            <ProductImageGallery
+              productName={PRODUCT.name}
+              options={[
+                {
+                  name: selectedColor.name,
+                  images: selectedColor.images,
+                },
+              ]}
+              selectedOption={{
+                name: selectedColor.name,
+                images: selectedColor.images,
+              } as ProductImageGalleryOption}
+              selectedImage={selectedImage}
+              onImageChange={(image) => {
+                setSelectedImage(image);
+                setCurrentImageIndex(selectedColor.images.indexOf(image));
+              }}
+              className="h-full w-full"
+              frameBackground="transparent"
             />
           </div>
-          <div className="flex gap-2 justify-center">
-            {COLOR_IMAGE_MAP[selectedColor.slug].map((img) => (
-              <button
-                key={img}
-                onClick={() => setSelectedImage(img)}
-                className={`relative w-16 h-16 rounded overflow-hidden border border-gray-200 bg-[#fbf6f0] ${selectedImage === img ? 'ring-2 ring-black' : ''}`}
-              >
-                <Image src={img} alt="" fill className="object-contain bg-[#fbf6f0]" />
-              </button>
-            ))}
-          </div>
-        </div>
 
-        {/* Product Info */}
-        <div className="md:w-1/2 flex flex-col justify-start">
-          <h1 className="text-3xl font-bold mb-2">{PRODUCT.name}</h1>
-          {/* Color Picker */}
-          <ColorPicker
-            options={GALA_COLOR_OPTIONS as any}
-            selectedName={selectedColor.name}
-            onSelect={(opt) => {
-              setSelectedColor(opt as any);
-              setSelectedImage((opt.images && opt.images[0]) || selectedImage);
-              if (typeof window !== 'undefined' && opt.slug) window.history.replaceState(null, '', `/shop/gala-tshirt?color=${opt.slug}`);
-            }}
-          />
+          {/* TITLE / PRICE - Single Line */}
+          <div className="mt-8 flex flex-col items-center lg:col-start-2 lg:items-start lg:mt-45">
+            <h1 className="text-[24px] uppercase tracking-[0.08em] leading-tight text-[#1d1c19] font-avenir-black">
+              {PRODUCT.name}
+            </h1>
+            <p className="mt-1 text-[18px] text-[#1d1c19] font-avenir-light">
+              {selectedColor.name.toUpperCase()}
+            </p>
 
-          {/* Size Selection */}
-          <div style={{ marginBottom: 18 }}>
-            <p className="text-sm font-medium text-gray-700 mb-3">Size:</p>
-            <div className="size-single-line">
-              {SIZE_OPTIONS.map((size) => (
-                <button key={size} className={`size-button px-3 rounded-lg font-semibold border-2 transition-all ${selectedSize === size ? 'border-black bg-black text-white' : 'border-gray-300 bg-white text-black hover:border-gray-400 hover:bg-gray-50'}`} onClick={() => setSelectedSize(size)} type="button">{size}</button>
-              ))}
-            </div>
-            <div className="mt-2"><SizeGuide productSlug="gala-tshirt" imagePath="/images/size-guides/Size Guide/Gala Table.png" /></div>
-          </div>
-
-          <div className="mb-4">
-            <p className="text-lg text-gray-700 leading-relaxed">{PRODUCT.description}</p>
-            {/* Bundle CTA: open bundle sheet on custom tab */}
-            <div className="mt-2 flex items-center gap-3">
-              <span className="text-sm text-gray-500">Want to bundle this tee?</span>
-              <button
-                onClick={() => setBundleOpen(true)}
-                className="inline-flex items-center px-3 py-1.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-800 hover:bg-gray-100 transition-colors"
-              >
-                Build a Custom Bundle
-              </button>
-            </div>
-            {PRODUCT.details && (
-              <div className="mt-3">
-                <span className="text-xs uppercase tracking-[0.2em] text-gray-500">Details</span>
-                <ul className="mt-2 list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
-                  {PRODUCT.details.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </div>
+            {!isSurveyMode && (
+              <>
+                {isOnStPats ? (
+                  <>
+                    <p className="mt-2 text-[26px] font-black text-[#1d1c19] line-through opacity-40">Coming Soon</p>
+                    <p className="text-[26px] font-black text-[#2e8b2e]">Coming Soon</p>
+                  </>
+                ) : (
+                  <p className="mt-2 text-[26px] font-black text-[#1d1c19]">Coming Soon</p>
+                )}
+                {isOnStPats && (
+                  <StPatsBanner colorName={selectedColor.name} />
+                )}
+                {!isOnStPats && isStPatsDayActive() && (
+                  <StPatsNudge colorName="Grasshopper" salePrice={getStPatsPrice("gala-tshirt", PRODUCT.price, "grasshopper")} />
+                )}
+              </>
             )}
           </div>
-          <div className="text-2xl font-semibold mb-6">${PRODUCT.price.toFixed(2)}</div>
-          <button className={`bg-black text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-800 mb-2 ${!selectedSize ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={handleAddToCart} disabled={!selectedSize}>
-            {!selectedSize ? 'Pick a size to add to cart' : 'Add to Cart'}
-          </button>
+
+          {/* SWATCHES */}
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-3 lg:col-start-2 lg:justify-start">
+            {GALA_COLOR_OPTIONS.map((option) => {
+              const isActive = option.slug === selectedColor.slug;
+
+              return (
+                <button
+                  key={option.slug}
+                  type="button"
+                  onClick={() => handleSelectColor(option)}
+                  aria-label={option.name}
+                  className={[
+                    "appearance-none bg-transparent [-webkit-tap-highlight-color:transparent]",
+                    "h-7 w-7 rounded-full overflow-hidden p-0.5",
+                    "transition-transform duration-150 hover:-translate-y-px",
+                    "focus:outline-none focus:ring-2 focus:ring-[#1d1c19]/35",
+                    isActive ? "ring-2 ring-[#1d1c19]" : "ring-1 ring-[#cfc2b3]",
+                  ].join(" ")}
+                >
+                  <span
+                    aria-hidden
+                    className="block h-full w-full rounded-full"
+                    style={{
+                      backgroundColor: option.color,
+                      border: option.border ? `1px solid ${option.border}` : undefined,
+                    }}
+                  />
+                </button>
+              );
+            })}
+          </div>
+
+          {/* SIZE GUIDE */}
+          <div className="mt-2 text-[13px] font-semibold uppercase tracking-[0.34em] text-[#1d1c19] lg:col-start-2 lg:text-left">
+            <SizeGuide
+              productSlug="gala-tshirt"
+              imagePath="/images/size-guides/Size Guide/Gala Table.png"
+              buttonLabel="SIZE GUIDE"
+              className="text-[13px] font-semibold uppercase tracking-[0.34em]"
+            />
+          </div>
         </div>
-      </div>
 
-      <FrequentlyBoughtTogether
-        products={boughtTogetherItems}
-        onAddToCart={handleAddBoughtTogetherItem}
-        onAddAllToCart={handleAddAllToCart}
-      />
-
-      {/* Reviews */}
-      <div style={{ display: 'flex', alignItems: 'center', background: '#fbf6f0' }} className="py-12 px-4">
-        <div className="max-w-4xl mx-auto w-full">
-          <CustomerReviews productId="gala-tshirt" />
+        {/* DESCRIPTION SECTION */}
+        <div className="mx-auto w-full max-w-[900px] px-6 text-center lg:px-12 lg:text-left mt-5">
+          <p className="px-1 text-[14px] leading-relaxed text-[#3d372f]">
+            {formatText(PRODUCT.description, "Gala Tee", ["Gala", "Portugal"])}
+          </p>
         </div>
-      </div>
 
-      {/* Minimalistic cart taskbar at bottom if cart has items */}
-      {items.length > 0 && !showPopup && (
-        <div className="fixed left-0 right-0 bottom-0 z-50 bg-black text-white px-2 py-3 md:px-4 md:py-4 flex items-center justify-between" style={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, boxShadow: '0 4px 24px 0 rgba(0,0,0,0.18)', borderBottom: 'none' }}>
-          <span className="font-medium text-sm md:text-base">Cart</span>
-          <div className="flex items-center gap-2 md:gap-3">
-            <span className="inline-block bg-white text-black rounded px-2 py-1 md:px-3 font-bold text-sm md:text-base">{items.reduce((sum, i) => sum + i.quantity, 0)}</span>
-            <a href="/cart" className="ml-1 md:ml-2 px-3 py-2 md:px-4 md:py-2 bg-white text-black rounded font-semibold hover:bg-gray-200 text-xs md:text-base" style={{ textDecoration: 'none' }}>Head to Cart</a>
+        {/* DETAILS SECTION */}
+        <div className="mx-auto w-full max-w-[900px] px-6 text-left lg:px-12">
+          <div className="mt-8">
+            <p className="text-base font-semibold text-[#1d1c19]">Details</p>
+            <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-[#1d1c19]">
+              {PRODUCT.details.map((detail) => (
+                <li key={detail}>{formatText(detail, "Gala Tee", ["Gala", "Portugal"])}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {/* YOU MAY ALSO LIKE SECTION */}
+        <div className="mx-auto w-full max-w-[1200px] px-6 text-center lg:px-12">
+          <div className="mt-8">
+            <p className="text-[22px] font-black uppercase tracking-[0.32em] text-[#1d1c19]">
+              You May Also Like
+            </p>
+            <div className="mt-5 grid w-full grid-cols-2 gap-x-4 gap-y-6 text-left sm:grid-cols-3 lg:grid-cols-4">
+              {boughtTogetherItems.map((product) => (
+                <Link
+                  key={`${product.name}-${product.image}`}
+                  href={`/shop/${product.id}`}
+                  className="flex flex-col hover:shadow-lg transition-shadow rounded-lg"
+                  style={{ textDecoration: 'none' }}
+                >
+                  <div className="relative aspect-4/5 w-full overflow-hidden border border-[#1d1c19] bg-white">
+                    <Image src={product.image} alt={product.name} fill className="object-cover" sizes="200px" />
+                  </div>
+                  <p className="mt-4 text-[11px] font-black uppercase tracking-[0.34em] text-[#1d1c19]">
+                    {product.name}
+                  </p>
+                  <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.34em] text-[#1d1c19]">
+                    Coming Soon
+                  </p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {!isSurveyMode ? (
+        <ProductPurchaseBar
+          price={isOnStPats ? stPatsSalePrice : PRODUCT.price}
+          summaryLabel={selectedColor.name.toUpperCase()}
+          sizeOptions={sizeOptions}
+          selectedSize={selectedSize}
+          onSelectSize={setSelectedSize}
+          colorOptions={colorOptions}
+          selectedColor={selectedColor.slug}
+          onSelectColor={(value) => {
+            const next = GALA_COLOR_OPTIONS.find((option) => option.slug === value);
+            if (next) {
+              handleSelectColor(next);
+            }
+          }}
+          onAddToCart={handleAddToCart}
+        />
+      ) : (
+        <div className="fixed inset-x-0 bottom-0 z-[10004]">
+          <div className="w-full pb-[calc(env(safe-area-inset-bottom,0px)+10px)]">
+            <div className="relative flex overflow-hidden border-t border-white bg-gray-800 text-white shadow-[0_-14px_40px_rgba(0,0,0,0.35)]">
+              <div className="flex h-full w-full items-center justify-center py-4 px-6">
+                <span className="text-[13px] font-semibold uppercase tracking-[0.18em]">
+                  More Information Coming Soon
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       )}
-      {/* Bundle sheet modal: opens when CTA is clicked */}
-      <BundleSheet open={bundleOpen} onClose={() => setBundleOpen(false)} initialTab="custom" />
     </div>
   );
 }

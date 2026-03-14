@@ -1,13 +1,16 @@
 "use client"
 
-import React, { createContext, useState, useEffect } from "react"
+import React, { createContext, useState, useEffect, useRef } from "react"
 import { usePathname, useSearchParams } from "next/navigation"
 import { ensurePosthog, capturePageview } from "../instrumentation.client"
+import { trackPageView } from "@/lib/analytics/meta-pixel"
 import LogoButton from "./LogoButton"
-import CartBar from "./CartBar"
 import StaggeredMenu from "./StagerredMenu"
 import SiteFooter from "./SiteFooter"
-import BackgroundVideo from "./BackgroundVideo"
+import CartBar from "./CartBar"
+import CartOverlay from "./CartOverlay"
+import GlobalAddToCartTracker from '@/components/GlobalAddToCartTracker';
+import { useSurveyMode } from "@/hooks/useSurveyMode";
 
 // Context to control logo visibility (for intro)
 export const LogoVisibilityContext = createContext<{ hideLogo: boolean; setHideLogo: (v: boolean) => void }>({ hideLogo: false, setHideLogo: () => {} })
@@ -19,18 +22,31 @@ type ClientRootLayoutProps = {
 export default function ClientRootLayout({ children }: ClientRootLayoutProps) {
   const [hideLogo, setHideLogo] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const isSurveyMode = useSurveyMode()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const isShopRoute = pathname?.startsWith('/shop')
+  const lastTrackedUrl = useRef<string>('')
 
   // Ensure PostHog initializes on every client render
   useEffect(() => {
     ensurePosthog()
   }, [])
 
+  // Track Meta Pixel PageView on route changes (SPA navigation)
   useEffect(() => {
     const query = searchParams?.toString()
-    capturePageview(query ? `${pathname}?${query}` : pathname)
+    const currentUrl = query ? `${pathname}?${query}` : pathname
+
+    // Dedupe: only track if URL actually changed
+    if (currentUrl !== lastTrackedUrl.current) {
+      lastTrackedUrl.current = currentUrl
+      
+      // Track Meta Pixel PageView
+      trackPageView()
+      
+      // Track PostHog pageview
+      capturePageview(currentUrl)
+    }
   }, [pathname, searchParams])
 
   // Apply a global class to body for pages to react (e.g., hide category pills)
@@ -52,23 +68,92 @@ export default function ClientRootLayout({ children }: ClientRootLayoutProps) {
     }
   }, [pathname, menuOpen])
 
+  useEffect(() => {
+    // Universal uppercase logic removed
+  }, [pathname])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+    if (pathname && pathname.startsWith('/shop/') && pathname !== '/shop') {
+      window.scrollTo({ top: 0, behavior: 'auto' })
+      const raf = requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'auto' }))
+      return () => cancelAnimationFrame(raf)
+    }
+  }, [pathname])
+
+  // Survey project safeguard: strip visible dollar prices from PDPs, including legacy hardcoded text.
+  useEffect(() => {
+    if (!isSurveyMode) return
+    if (!pathname?.startsWith('/shop/')) return
+    if (pathname === '/shop') return
+    if (typeof document === 'undefined') return
+
+    const pricePattern = /\$\s?\d[\d,]*(?:\.\d{1,2})?/g
+
+    const sanitizeTextNodes = (root: ParentNode) => {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+      let node: Node | null = walker.nextNode()
+
+      while (node) {
+        const parent = node.parentElement
+        const tag = parent?.tagName
+        const skip = !parent || tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT'
+
+        if (!skip) {
+          const current = node.textContent ?? ''
+          if (pricePattern.test(current)) {
+            node.textContent = current.replace(pricePattern, 'Coming Soon')
+          }
+          pricePattern.lastIndex = 0
+        }
+
+        node = walker.nextNode()
+      }
+    }
+
+    sanitizeTextNodes(document.body)
+
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        mutation.addedNodes.forEach((added) => {
+          if (added.nodeType === Node.TEXT_NODE) {
+            const text = added.textContent ?? ''
+            if (pricePattern.test(text)) {
+              added.textContent = text.replace(pricePattern, 'Coming Soon')
+            }
+            pricePattern.lastIndex = 0
+            return
+          }
+
+          if (added.nodeType === Node.ELEMENT_NODE) {
+            sanitizeTextNodes(added as ParentNode)
+          }
+        })
+      }
+    })
+
+    observer.observe(document.body, { childList: true, subtree: true })
+
+    return () => observer.disconnect()
+  }, [isSurveyMode, pathname])
+
   // Hide logo on certain routes (cart) to avoid visual overlap with page headers
   // Note: logo visibility is now controlled by context only. Keep logo visible on all routes by default.
   
   return (
     <LogoVisibilityContext.Provider value={{ hideLogo, setHideLogo }}>
-      <BackgroundVideo />
+      {/* Global AddToCart tracker */}
+      <GlobalAddToCartTracker />
+      
       {/* Logo button, visible on every page, picture only, hidden if hideLogo */}
       <LogoButton />
       
       {children}
+      {/* <CartOverlay /> */}
+      {/* <CartBar /> */}
       <SiteFooter />
-      {/* Bottom spacer on shop/product pages so CartBar doesn't cover content */}
-      {isShopRoute && (
-        <div aria-hidden className="h-28 md:h-24" />
-      )}
-      
-      <CartBar />
       
       {/* Global StaggeredMenu - appears on all pages */}
       <div 
@@ -89,14 +174,13 @@ export default function ClientRootLayout({ children }: ClientRootLayoutProps) {
           items={[
             { label: "Home", ariaLabel: "Go to homepage", link: "/" },
             { label: "Shop", ariaLabel: "Browse products", link: "/shop" },
-            { label: "Account", ariaLabel: "Access your account", link: "/account" },
-            { label: "Cart", ariaLabel: "View your cart", link: "/cart" },
-            { label: "Contact", ariaLabel: "Contact us", link: "/contact" }
+            { label: "Contact", ariaLabel: "Contact us", link: "/contact" },
+            { label: "Policies", ariaLabel: "View our policies", link: "/privacy-policy" },
+            { label: "About Us", ariaLabel: "Learn about us", link: "/about" }
           ]}
           socialItems={[
-            { label: "Instagram", link: "https://www.instagram.com/fruitstandny/" },
-            { label: "X", link: "https://x.com/FruitStandNY" },
-            { label: "Facebook", link: "https://www.facebook.com/FRUITSTANDNY" }
+            { label: "Instagram", link: "https://www.instagram.com/ny/" },
+            { label: "Facebook", link: "https://www.facebook.com/NY" }
           ]}
           displaySocials={true}
           displayItemNumbering={true}
@@ -114,8 +198,16 @@ export default function ClientRootLayout({ children }: ClientRootLayoutProps) {
       <style jsx global>{`
         .custom-staggered-menu .staggered-menu-header {
           pointer-events: auto !important;
-          position: relative !important;
+          position: absolute !important;
+          top: 40px !important;
+          right: 18px !important;
+          left: auto !important;
           z-index: 10003 !important;
+          padding: 0 !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: flex-end !important;
+          width: auto !important;
         }
 
         .custom-staggered-menu .sm-toggle {

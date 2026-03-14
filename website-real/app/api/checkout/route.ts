@@ -50,12 +50,29 @@ export async function POST(request: NextRequest) {
       items?: CheckoutItemPayload[];
       shipping?: number | string;
       tax?: number | string;
+      discountCode?: string | null;
       guestData?: Record<string, unknown> | null;
       customerData?: {
         email?: string;
         name?: string;
         phone?: string;
       } | null;
+    };
+
+    type DiscountDefinition = {
+      type: 'percent' | 'amount';
+      value: number;
+      label?: string;
+      active: boolean;
+    };
+
+    const DISCOUNT_CODES: Record<string, DiscountDefinition> = {
+      FS2026: {
+        type: 'percent',
+        value: 10,
+        label: '10% off with FS2026',
+        active: true,
+      },
     };
 
     // 3. Parse Request
@@ -68,7 +85,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Checkout API: Request data parsed');
-    const { items = [], shipping = 0, tax = 0, guestData = null, customerData = null } = requestData;
+    const { items = [], shipping = 0, tax = 0, discountCode = null, guestData = null, customerData = null } = requestData;
 
     // 4. Auth (Optional) - preserved for logging only
     const authHeader = request.headers.get('authorization');
@@ -92,13 +109,47 @@ export async function POST(request: NextRequest) {
 
     const normalizedItems: CheckoutItemPayload[] = Array.isArray(items) ? items : [];
     const subtotal = normalizedItems.reduce((sum, item) => sum + (Number(item.price || 0) * Number(item.quantity || 0)), 0);
-    const totalAmount = subtotal + safeShipping + safeTax;
+    const normalizedDiscountCode = typeof discountCode === 'string'
+      ? discountCode.trim().toUpperCase()
+      : '';
+
+    const discountDefinition = normalizedDiscountCode
+      ? DISCOUNT_CODES[normalizedDiscountCode]
+      : undefined;
+
+    const rawDiscountAmount = discountDefinition && discountDefinition.active
+      ? (discountDefinition.type === 'percent'
+        ? (subtotal * discountDefinition.value) / 100
+        : discountDefinition.value)
+      : 0;
+
+    const discountAmount = Math.max(0, Math.min(rawDiscountAmount, subtotal));
+    const totalAmount = subtotal - discountAmount + safeShipping + safeTax;
     const orderNumber = generateOrderNumber();
 
     console.log('Checkout API: Order details calculated', { orderNumber, totalAmount });
 
     // 6. Prepare Stripe line items (unchanged except image handling)
-    const lineItems = normalizedItems.map((item) => {
+    const discountRatio = subtotal > 0 && discountAmount > 0
+      ? (subtotal - discountAmount) / subtotal
+      : 1;
+
+    const adjustedUnitAmounts = normalizedItems.map((item) => (
+      Math.max(Math.round(Number(item.price || 0) * 100 * discountRatio), 0)
+    ));
+
+    const adjustedSubtotal = adjustedUnitAmounts.reduce((sum, amount, index) => (
+      sum + amount * Number(normalizedItems[index]?.quantity || 0)
+    ), 0);
+
+    const targetSubtotal = Math.max(Math.round((subtotal - discountAmount) * 100), 0);
+    const remainder = targetSubtotal - adjustedSubtotal;
+
+    const lineItems = normalizedItems.map((item, index) => {
+      const finalUnitAmount = Math.max(
+        adjustedUnitAmounts[index] + (index === 0 ? remainder : 0),
+        0
+      );
       let imageUrl = item.image;
       if (imageUrl && !imageUrl.startsWith('http')) {
         const cleanPath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
@@ -133,7 +184,8 @@ export async function POST(request: NextRequest) {
         price_data: {
           currency: 'usd',
           product_data: productData,
-          unit_amount: Math.round(Number(item.price || 0) * 100),
+          unit_amount: finalUnitAmount,
+          tax_behavior: 'exclusive', // Tax will be calculated on top of this price
         },
         quantity: Number(item.quantity || 1),
       };
@@ -145,21 +197,13 @@ export async function POST(request: NextRequest) {
           currency: 'usd',
           product_data: { name: 'Shipping' },
           unit_amount: Math.round(safeShipping * 100),
+          tax_behavior: 'exclusive', // Tax will be calculated on shipping too
         },
         quantity: 1,
       });
     }
 
-    if (safeTax > 0) {
-      lineItems.push({
-        price_data: {
-          currency: 'usd',
-          product_data: { name: 'Tax' },
-          unit_amount: Math.round(safeTax * 100),
-        },
-        quantity: 1,
-      });
-    }
+    // Remove manual tax line item - Stripe automatic_tax will calculate it
 
     // 7. Create Stripe Session with metadata containing full order payload (no DB writes here)
     type GuestAddress = {
@@ -192,12 +236,17 @@ export async function POST(request: NextRequest) {
       mode: 'payment',
       success_url: `${baseUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/cart`,
+      automatic_tax: {
+        enabled: true,
+      },
       metadata: {
         // Required by your webhook to create the order after payment
         cart: JSON.stringify(normalizedItems || []),
         tax: String(safeTax),
         shipping: String(safeShipping),
         subtotal: String(subtotal),
+        discount_code: normalizedDiscountCode || '',
+        discount_amount: String(discountAmount),
         guest: JSON.stringify(guestData || {}),
         customer: JSON.stringify(customerData || {}),
         order_number: orderNumber,
@@ -223,15 +272,26 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Checkout API: Creating Stripe session...');
-    const session = await stripe.checkout.sessions.create(sessionConfig);
-    console.log('Checkout API: Stripe session created', session.id);
+    let session: Stripe.Checkout.Session;
+    try {
+      session = await stripe.checkout.sessions.create(sessionConfig);
+      console.log('Checkout API: Stripe session created successfully', {
+        id: session.id,
+        url: session.url ? 'present' : 'missing',
+        orderNumber: sessionConfig.metadata?.order_number,
+      });
+    } catch (error) {
+      console.error('Checkout API: Failed to create Stripe session', error);
+      throw error;
+    }
 
     // 8. IMPORTANT: DO NOT create or update any Supabase order here.
     // All order persistence must happen in the webhook on checkout.session.completed.
 
-    // 9. Return only the Stripe session id
+    // 9. Return the Stripe session id and URL for redirect
     return NextResponse.json({
-      sessionId: session.id
+      sessionId: session.id,
+      url: session.url
     });
 
   } catch (error) {

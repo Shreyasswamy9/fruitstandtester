@@ -7,17 +7,23 @@ import { createClient } from '@supabase/supabase-js'
 //   Headers: x-admin-key: <ADMIN_MAINTENANCE_KEY>
 // Returns a summary of updated/skipped/errors.
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 export async function POST(request: NextRequest) {
   // Simple header-based protection (avoid exposing publicly). Set ADMIN_MAINTENANCE_KEY in env.
   const adminKey = request.headers.get('x-admin-key')
   if (!process.env.ADMIN_MAINTENANCE_KEY || adminKey !== process.env.ADMIN_MAINTENANCE_KEY) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!supabaseUrl || !serviceRoleKey) {
+    return NextResponse.json(
+      { error: 'Server misconfiguration: missing Supabase admin environment variables.' },
+      { status: 500 }
+    )
+  }
+
+  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey)
 
   let page = 1
   const perPage = 1000

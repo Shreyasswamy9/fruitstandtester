@@ -1,4 +1,5 @@
 import React from 'react';
+import { useSurveyMode } from '@/hooks/useSurveyMode';
 
 type PriceProp = {
   price: number | string;
@@ -16,6 +17,13 @@ const toNumber = (v: number | string) => {
 const format = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function Price({ price, salePrice, className, strikeColor }: PriceProp) {
+  const isSurveyMode = useSurveyMode();
+  
+  // In survey mode, show "Coming Soon" instead of prices
+  if (isSurveyMode) {
+    return <span className={className}>Coming Soon</span>;
+  }
+
   const p = toNumber(price);
   const sale = salePrice !== undefined ? toNumber(salePrice) : undefined;
 

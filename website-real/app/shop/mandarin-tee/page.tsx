@@ -1,13 +1,33 @@
 "use client";
+import React, { useCallback, useMemo, useState } from "react";
+import Link from "next/link";
 import Image from "next/image";
-import React, { useState } from "react";
 import SizeGuide from "@/components/SizeGuide";
-import CustomerReviews from "@/components/CustomerReviews";
-import FrequentlyBoughtTogether, { getFBTForPage } from "@/components/FrequentlyBoughtTogether";
-import { useRouter } from "next/navigation";
+import ProductImageGallery, { type ProductImageGalleryOption } from "@/components/ProductImageGallery";
+import { getFBTForPage } from "@/components/FrequentlyBoughtTogether";
 import { useCart } from "../../../components/CartContext";
+import ProductPageBrandHeader from "@/components/ProductPageBrandHeader";
+import ProductPurchaseBar, { type PurchaseSizeOption } from "@/components/ProductPurchaseBar";
+import { useTrackProductView } from "@/hooks/useTrackProductView";
 
-const mandarinImages = [
+// Simple formatter for highlighting keywords in the description
+// Formatter: lowercase except product/color names uppercased
+function formatText(text: string, productName: string, colorNames: string[]): string {
+  let lower = text.toLowerCase();
+  // Uppercase product name
+  const nameRegex = new RegExp(productName, "gi");
+  lower = lower.replace(nameRegex, productName.toUpperCase());
+  // Uppercase color names
+  colorNames.forEach(color => {
+    const colorRegex = new RegExp(color, "gi");
+    lower = lower.replace(colorRegex, color.toUpperCase());
+  });
+  // Capitalize first word of each sentence
+  lower = lower.replace(/(?:^|[.!?]\s+)([a-z])/g, (match) => match.toUpperCase());
+  return lower;
+}
+
+const MANDARIN_IMAGES = [
   "/images/products/Mandarin Tee/Mandarin Tee.png",
   "/images/products/Mandarin Tee/Mandarin 2.png",
   "/images/products/Mandarin Tee/Mandarin 3.png",
@@ -16,161 +36,178 @@ const mandarinImages = [
 
 const PRODUCT = {
   name: "Mandarin 橘子 [JUZI] Tee",
-  price: 68.00,
-  description: "Cut from heavyweight 300 GSM cotton, the Mandarin Tee brings structure to a relaxed, cropped silhouette. Featuring minimal seams for an uninterrupted, full-tee print front and back.",
+  price: 68,
+  description:
+    "Cut from heavyweight 300 GSM cotton, the Mandarin Tee brings structure to a relaxed, cropped silhouette. Minimal seams keep the oversized fruit graphic uninterrupted front and back.",
   details: [
     "100% premium heavyweight cotton (300 GSM)",
-    "Two-panel design for a clean, seamless look",
-    "Cropped, boxy fit",
-    "32\" screen-printed graphic on front and back",
+    "Two-panel construction for a seamless print",
+    "Cropped, boxy silhouette",
+    '32" screen-printed artwork front and back',
     "Made in Dongguan, Guangdong, China",
-    "Ships with a custom FRUITSTAND sticker printed in NYC",
+    "Ships with a custom  sticker printed in NYC",
+    "Quality guaranteed, Free returns."
   ],
   sizes: ["XS", "S", "M", "L", "XL", "XXL", "XXXL"],
 };
 
-// Out of stock sizes for Mandarin Tee
-const OUT_OF_STOCK_SIZES = ["XS", "S" , "XXXL"];
+const OUT_OF_STOCK_SIZES = [
+  "XS", "S", "XXXL"] as const;
 
 export default function MandarinTeePage() {
-  const [selectedImage, setSelectedImage] = useState(mandarinImages[0]);
-  // Default to first available size (skip out of stock sizes)
-  const [selectedSize, setSelectedSize] = useState(
-    PRODUCT.sizes.find(size => !OUT_OF_STOCK_SIZES.includes(size)) || PRODUCT.sizes[0]
+  const [selectedImage, setSelectedImage] = useState(MANDARIN_IMAGES[0]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const sizeOptions = useMemo<PurchaseSizeOption[]>(
+    () =>
+      PRODUCT.sizes.map((size) => ({
+        value: size,
+        label: size,
+        soldOut: OUT_OF_STOCK_SIZES.includes(size as (typeof OUT_OF_STOCK_SIZES)[number]),
+      })),
+    []
   );
-  const { addToCart, items } = useCart();
-  const [showPopup, setShowPopup] = useState(false);
-  const router = useRouter();
-  const handleAddToCart = () => {
+  const [selectedSize, setSelectedSize] = useState<string | null>(() => {
+    const firstAvailable = sizeOptions.find((option) => !option.soldOut)?.value;
+    return firstAvailable ?? null;
+  });
+  const { addToCart } = useCart();
+
+  useTrackProductView({
+    productId: "f47a07e4-6470-49b2-ace6-a60e70ee3737",
+    productName: PRODUCT.name,
+    price: PRODUCT.price,
+    currency: "USD",
+  });
+
+  const handleAddToCart = useCallback(() => {
+    if (!selectedSize) return;
     addToCart({
-      productId: "mandarin-tee",
+      productId: "f47a07e4-6470-49b2-ace6-a60e70ee3737",
       name: PRODUCT.name,
       price: PRODUCT.price,
       image: selectedImage,
       quantity: 1,
       size: selectedSize,
     });
-    setShowPopup(true);
-    setTimeout(() => setShowPopup(false), 1500);
-  };
+  }, [addToCart, selectedImage, selectedSize]);
 
-  const boughtTogetherItems = getFBTForPage('mandarin-tee');
+  const boughtTogetherItems = getFBTForPage("mandarin-tee");
 
-  const handleAddBoughtTogetherItem = (item: { id: string; name: string; price: number; image: string }) => {
-    addToCart({ productId: item.id, name: item.name, price: item.price, image: item.image, quantity: 1, size: PRODUCT.sizes[2] });
-    setShowPopup(true);
-    setTimeout(() => setShowPopup(false), 1500);
-  };
-
-  const handleAddAllToCart = () => {
-    boughtTogetherItems.forEach((item) => addToCart({ productId: item.id, name: item.name, price: item.price, image: item.image, quantity: 1, size: PRODUCT.sizes[2] }));
-    setShowPopup(true);
-    setTimeout(() => setShowPopup(false), 1500);
-  };
-
-  const taskbarHeight = items.length > 0 && !showPopup ? 64 : 0;
-
-
+  const selectedSizeSoldOut = selectedSize
+    ? sizeOptions.find((option) => option.value === selectedSize)?.soldOut
+    : false;
 
   return (
     <div>
-      <span
-        onClick={() => router.back()}
-        style={{ position: 'fixed', top: 24, left: '50%', transform: 'translateX(-50%)', fontSize: 16, color: '#232323', cursor: 'pointer', fontWeight: 500, zIndex: 10005, background: 'rgba(255,255,255,0.9)', border: '1px solid #e0e0e0', borderRadius: '20px', padding: '8px 16px', textDecoration: 'none', backdropFilter: 'blur(10px)', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', transition: 'all 0.2s ease', pointerEvents: 'auto' }}
-      >
-        ← Go Back
-      </span>
-      <div className="flex flex-col md:flex-row gap-8 max-w-4xl mx-auto py-12 px-4" style={{ paddingTop: 120, paddingBottom: taskbarHeight }}>
-        <div className="flex w-full md:w-1/2 flex-col items-center gap-4">
-          <div className="relative w-full max-w-sm md:max-w-full aspect-square rounded-xl overflow-hidden bg-white shadow-sm">
-            <Image src={selectedImage} alt={PRODUCT.name} fill sizes="(max-width: 768px) 90vw, 420px" style={{ objectFit: "contain", background: "#fff" }} priority />
+      <ProductPageBrandHeader />
+
+      <main className="bg-[#fbf5ed] pb-15 pt-16 md:pt-20 lg:pt-24">
+        {/* HERO SECTION - Top 75% */}
+        <div className="mx-auto w-full max-w-7xl px-6 text-center lg:px-12 lg:text-left lg:grid lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] lg:items-start lg:gap-14" style={{ minHeight: '75vh' }}>
+          {/* IMAGE */}
+          <div className="relative mx-auto aspect-4/5 w-full lg:mx-0 lg:max-w-155 lg:row-span-3">
+            <ProductImageGallery
+              productName={PRODUCT.name}
+              options={[
+                {
+                  name: "Default",
+                  images: MANDARIN_IMAGES,
+                },
+              ]}
+              selectedOption={{
+                name: "Default",
+                images: MANDARIN_IMAGES,
+              } as ProductImageGalleryOption}
+              selectedImage={selectedImage}
+              onImageChange={(image) => {
+                setSelectedImage(image);
+                setCurrentImageIndex(MANDARIN_IMAGES.indexOf(image));
+              }}
+              className="h-full w-full"
+              frameBackground="transparent"
+            />
           </div>
-          <div className="flex gap-2 justify-center">
-            {mandarinImages.map((img) => (
-              <button key={img} onClick={() => setSelectedImage(img)} className={`relative w-16 h-16 rounded border ${selectedImage === img ? "ring-2 ring-black" : ""}`}>
-                <Image src={img} alt={PRODUCT.name} fill style={{ objectFit: "contain", background: "#fff" }} />
-              </button>
-            ))}
+
+          {/* TITLE / PRICE */}
+          <div className="mt-8 flex flex-col items-center lg:col-start-2 lg:items-start lg:mt-45">
+            <h1 className="text-[24px] uppercase tracking-[0.08em] leading-tight text-[#1d1c19] font-avenir-black">
+              {PRODUCT.name}
+            </h1>
+
+
+            <p className="mt-2 text-[26px] font-black text-[#1d1c19]">Coming Soon</p>
+
+            {/* SIZE GUIDE */}
+            <div className="mt-2 text-[13px] font-semibold uppercase tracking-[0.34em] text-[#1d1c19] lg:col-start-2 lg:text-left">
+              <SizeGuide
+                productSlug="mandarin-tee"
+                imagePath="/images/size-guides/Size Guide/Mandarin Tee Table.png"
+                buttonLabel="SIZE GUIDE"
+                className="text-[13px] font-semibold uppercase tracking-[0.34em]"
+              />
+            </div>
           </div>
         </div>
-        <div className="md:w-1/2 flex flex-col justify-start">
-          <h1 className="text-3xl font-bold mb-2">{PRODUCT.name}</h1>
-          <div className="text-2xl font-semibold mb-6">${PRODUCT.price.toFixed(2)}</div>
-          <div className="mb-4">
-            <p className="text-sm font-medium text-gray-700 mb-3">Size:</p>
-            <div className="size-single-line">
-              {PRODUCT.sizes.map((size) => {
-                const isOutOfStock = OUT_OF_STOCK_SIZES.includes(size);
-                return (
-                  <button
-                    key={size}
-                    className={`size-button px-3 rounded-lg font-semibold border-2 transition-all ${isOutOfStock
-                        ? 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed line-through'
-                        : selectedSize === size
-                          ? 'border-black bg-black text-white'
-                          : 'border-gray-300 bg-white text-black hover:border-gray-400 hover:bg-gray-50'
-                      }`}
-                    onClick={() => !isOutOfStock && setSelectedSize(size)}
-                    type="button"
-                    disabled={isOutOfStock}
-                    title={isOutOfStock ? 'Out of Stock' : ''}
-                  >
-                    {size}
-                  </button>
-                );
-              })}
-            </div>
-            {/* Low stock disclaimer for available sizes */}
-            <div className="mt-2 flex items-center gap-1.5">
-              <span className="inline-block w-2 h-2 bg-orange-500 rounded-full animate-pulse"></span>
-              <span className="text-sm text-orange-600 font-medium">Few units remaining</span>
-            </div>
-            <div className="mt-2"><SizeGuide productSlug="mandarin-tee" imagePath="/images/size-guides/Size Guide/Mandarin Tee Table.png" /></div>
-          </div>
 
-          <div className="mb-4">
-            <p className="text-lg text-gray-700 leading-relaxed">{PRODUCT.description}</p>
-            {PRODUCT.details && (
-              <div className="mt-3">
-                <span className="text-xs uppercase tracking-[0.2em] text-gray-500">Details</span>
-                <ul className="mt-2 list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
-                  {PRODUCT.details.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-
-          <button className="bg-black text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-800 mb-2" onClick={handleAddToCart}>
-            Add to Cart
-          </button>
+        {/* DESCRIPTION SECTION */}
+        <div className="mx-auto w-full max-w-225 px-6 text-center lg:px-12 mt-5">
+          <p className="px-1 text-[14px] leading-relaxed text-[#3d372f]">
+            {formatText(PRODUCT.description, PRODUCT.name, ["Mandarin", "JUZI"])}
+          </p>
         </div>
-      </div>
 
-      <FrequentlyBoughtTogether
-        products={boughtTogetherItems}
-        onAddToCart={handleAddBoughtTogetherItem}
-        onAddAllToCart={handleAddAllToCart}
+        {/* DETAILS SECTION */}
+        <div className="mx-auto w-full max-w-225 px-6 text-left lg:px-12">
+          <div className="mt-8">
+            <p className="text-base font-semibold text-[#1d1c19]">Details</p>
+            <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-[#1d1c19]">
+              {PRODUCT.details.map((detail) => (
+                <li key={detail}>{formatText(detail, PRODUCT.name, ["Mandarin", "JUZI"])} </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {/* YOU MAY ALSO LIKE SECTION */}
+        <div className="mx-auto w-full max-w-300 px-6 text-center lg:px-12">
+          <div className="mt-8">
+            <p className="text-[22px] font-black uppercase tracking-[0.32em] text-[#1d1c19]">
+              You May Also Like
+            </p>
+            <div className="mt-5 grid w-full grid-cols-2 gap-x-4 gap-y-6 text-left sm:grid-cols-3 lg:grid-cols-4">
+              {boughtTogetherItems.map((product) => (
+                <Link
+                  key={`${product.name}-${product.image}`}
+                  href={`/shop/${product.id}`}
+                  className="flex flex-col hover:shadow-lg transition-shadow rounded-lg"
+                  style={{ textDecoration: 'none' }}
+                >
+                  <div className="relative aspect-4/5 w-full overflow-hidden border border-[#1d1c19] bg-white">
+                    <Image src={product.image} alt={product.name} fill className="object-cover" sizes="200px" />
+                  </div>
+                  <p className="mt-4 text-[11px] font-black uppercase tracking-[0.34em] text-[#1d1c19]">
+                    {product.name}
+                  </p>
+                  <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.34em] text-[#1d1c19]">
+                    Coming Soon
+                  </p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <ProductPurchaseBar
+        price={PRODUCT.price}
+        summaryLabel="MANDARIN 橘子"
+        sizeOptions={sizeOptions}
+        selectedSize={selectedSize}
+        onSelectSize={setSelectedSize}
+        onAddToCart={handleAddToCart}
+        addDisabled={!selectedSize || Boolean(selectedSizeSoldOut)}
+        addDisabledReason={selectedSizeSoldOut ? "Sold out" : undefined}
       />
-
-      {/* Reviews */}
-      <div style={{ display: 'flex', alignItems: 'center', background: '#fbf6f0' }} className="py-12 px-4">
-        <div className="max-w-4xl mx-auto w-full">
-          <CustomerReviews productId="mandarin-tee" />
-        </div>
-      </div>
-
-      {/* Minimalistic cart taskbar at bottom if cart has items */}
-      {items.length > 0 && !showPopup && (
-        <div className="fixed left-0 right-0 bottom-0 z-50 bg-black text-white px-2 py-3 md:px-4 md:py-4 flex items-center justify-between" style={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, boxShadow: '0 4px 24px 0 rgba(0,0,0,0.18)', borderBottom: 'none' }}>
-          <span className="font-medium text-sm md:text-base">Cart</span>
-          <div className="flex items-center gap-2 md:gap-3">
-            <span className="inline-block bg-white text-black rounded px-2 py-1 md:px-3 font-bold text-sm md:text-base">{items.reduce((sum, i) => sum + i.quantity, 0)}</span>
-            <a href="/cart" className="ml-1 md:ml-2 px-3 py-2 md:px-4 md:py-2 bg-white text-black rounded font-semibold hover:bg-gray-200 text-xs md:text-base" style={{ textDecoration: 'none' }}>Head to Cart</a>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

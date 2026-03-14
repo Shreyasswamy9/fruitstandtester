@@ -61,15 +61,15 @@ function shippoFetch(path: string, opts: RequestInit = {}) {
 }
 
 const FROM_ADDRESS = {
-  name: 'FRUITSTAND',
-  company: 'FRUITSTAND LLC',
+  name: '',
+  company: ' LLC',
   street1: '37-30 Review Avenue',
   city: 'Long Island City',
   state: 'NY',
   zip: '11101',
   country: 'US',
   phone: '+',
-  email: 'info@fruitstandny.com',
+  email: 'info@ny.com',
 }
 
 function ensureToken() {

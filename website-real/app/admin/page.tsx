@@ -116,7 +116,7 @@ export default function AdminPage() {
                 Seed Database
               </button>
               <p className="text-xs text-gray-500 mt-2">
-                Admin: admin@fruitstand.ny / admin123
+                Admin: admin@.ny / admin123
               </p>
             </div>
 

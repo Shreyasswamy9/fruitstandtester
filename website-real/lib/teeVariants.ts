@@ -2,6 +2,7 @@ export type TeeColor = {
   name: string;
   hex: string;
   image: string;
+  images?: string[];
 };
 
 export type TeeVariant = {

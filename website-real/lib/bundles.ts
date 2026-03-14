@@ -31,4 +31,12 @@ export const bundles: Bundle[] = [
     description: 'Retro Track Suit comfort paired with the Ecru FS Cap',
     discountPercent: 12,
   },
+  {
+    id: 'tshirt-bundle',
+    title: ' Tee Bundle',
+    // Gala Tee (1011), Cameo Tee (1021), Mutsu Tee (1031)
+    itemIds: [1011, 1021, 1031],
+    description: 'Fan-favorite Gala, Cameo, and Mutsu tees bundled together',
+    discountPercent: 15,
+  },
 ];

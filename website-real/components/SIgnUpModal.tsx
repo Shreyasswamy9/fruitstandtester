@@ -151,7 +151,7 @@ export function SignupModal({ isOpen, onClose }: SupabaseAuthModalProps) {
               },
             },
           }}
-          providers={['google', 'apple']}
+          providers={['google']}
           redirectTo={redirectTo}
           view="sign_in"
           showLinks={true}

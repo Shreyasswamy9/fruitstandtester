@@ -1,13 +1,30 @@
 "use client";
-import Image from "next/image";
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import React, { useCallback, useMemo, useState } from "react";
+import ProductImageGallery, { type ProductImageGalleryOption } from "@/components/ProductImageGallery";
 import { useCart } from "../../../components/CartContext";
-import FrequentlyBoughtTogether, { FBTProduct, getFBTForPage } from "@/components/FrequentlyBoughtTogether";
-import Price from '@/components/Price';
-import CustomerReviews from "@/components/CustomerReviews";
+import { getFBTForPage } from "@/components/FrequentlyBoughtTogether";
+import ProductPageBrandHeader from "@/components/ProductPageBrandHeader";
+import ProductPurchaseBar, { type PurchaseSizeOption } from "@/components/ProductPurchaseBar";
+import { useTrackProductView } from "@/hooks/useTrackProductView";
+import StPatsBanner from "@/components/StPatsBanner";
+import { isGreenColorOnSale, getStPatsPrice } from "@/lib/stPatricksDay";
+import { useSurveyMode } from "@/hooks/useSurveyMode";
 
-const greenHatImages = [
+function formatText(text: string, productName: string, colorNames: string[]): string {
+  let lower = text.toLowerCase();
+  const nameRegex = new RegExp(productName, "gi");
+  lower = lower.replace(nameRegex, productName.toUpperCase());
+  colorNames.forEach(color => {
+    const colorRegex = new RegExp(color, "gi");
+    lower = lower.replace(colorRegex, color.toUpperCase());
+  });
+  lower = lower.replace(/(?:^|[.!?]\s+)([a-z])/g, (match) => match.toUpperCase());
+  return lower;
+}
+
+const FOREST_HILLS_HAT_IMAGES = [
+  "/images/products/Forest Hills Hat/Forest Hills Hat Final.png",
   "/images/products/Forest Hills Hat/Green Hat.png",
   "/images/products/Forest Hills Hat/G1.png",
   "/images/products/Forest Hills Hat/G2.png",
@@ -18,151 +35,167 @@ const greenHatImages = [
 const PRODUCT = {
   name: "Forest Hills Hat",
   price: 46,
-  description: "Crafted from premium cotton. Designed in NYC, worn everywhere.",
+  description: "Lime green cotton twill with tonal  embroidery front and back.",
   details: [
-    "Lime green color 6-panel camp hat.",
-    "Adjustable size, one size fits most.",
-    "Detailed embroidery on front and back.",
-    "Flexible brim.",
+    "6-panel camp silhouette",
+    "Lime green crown with matching under-brim",
+    "Detailed embroidery on front and back",
+    "Adjustable strap, one size fits most",
     "Made in Fujian, China",
+    "Quality guaranteed, Free returns."
   ],
 };
 
 export default function ForestHillsHatPage() {
-  const [selectedImage, setSelectedImage] = useState(greenHatImages[0]);
-  const { addToCart, items } = useCart();
-  const [showPopup, setShowPopup] = useState(false);
-  const router = useRouter();
-  const handleAddToCart = () => {
+  const isSurveyMode = useSurveyMode();
+  const [selectedImage, setSelectedImage] = useState(FOREST_HILLS_HAT_IMAGES[0]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const sizeOptions = useMemo<PurchaseSizeOption[]>(
+    () => [{ value: "ONE_SIZE", label: "One Size" }],
+    []
+  );
+  const [selectedSize, setSelectedSize] = useState<string>(() => sizeOptions[0]?.value ?? "");
+  const { addToCart } = useCart();
+
+  useTrackProductView({
+    productId: "8d1d5080-2106-420d-b7ea-babc2fba5457",
+    productName: PRODUCT.name,
+    price: PRODUCT.price,
+    currency: "USD",
+  });
+
+  const stPatsSalePrice = getStPatsPrice("forest-hills-hat", PRODUCT.price, null);
+  const isOnStPats = isGreenColorOnSale("forest-hills-hat", null);
+
+  const handleAddToCart = useCallback(() => {
+    if (!selectedSize) return;
     addToCart({
-      productId: "forest-hills-hat",
+      productId: "8d1d5080-2106-420d-b7ea-babc2fba5457",
       name: PRODUCT.name,
-      price: PRODUCT.price,
+      price: isOnStPats ? stPatsSalePrice : PRODUCT.price,
       image: selectedImage,
       quantity: 1,
+      size: selectedSize,
     });
-    setShowPopup(true);
-    setTimeout(() => setShowPopup(false), 1500);
-  };
+  }, [addToCart, selectedImage, selectedSize]);
 
-  // Height of the taskbar (matches py-3 + px-2, but add extra for safety)
-  const taskbarHeight = items.length > 0 && !showPopup ? 64 : 0;
+  const boughtTogetherItems = getFBTForPage("forest-hills-hat");
 
-  // FBT data (centralized)
-  const boughtTogetherItems: FBTProduct[] = getFBTForPage('forest-hills-hat');
-  // (reviews are loaded dynamically via CustomerReviews)
   return (
     <div>
-      {/* Go Back button */}
-      <span
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          try { router.back(); } catch { window.history.back(); }
-        }}
-        style={{
-          position: 'fixed',
-          top: 24,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          fontSize: 16,
-          color: '#232323',
-          cursor: 'pointer',
-          fontWeight: 500,
-          zIndex: 10005,
-          userSelect: 'none',
-          background: 'rgba(255,255,255,0.9)',
-          border: '1px solid #e0e0e0',
-          borderRadius: '20px',
-          padding: '8px 16px',
-          textDecoration: 'none',
-          backdropFilter: 'blur(10px)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          transition: 'all 0.2s ease',
-          pointerEvents: 'auto',
-        }}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLSpanElement).style.background = 'rgba(255,255,255,1)';
-          (e.currentTarget as HTMLSpanElement).style.transform = 'translateX(-50%) translateY(-2px)';
-          (e.currentTarget as HTMLSpanElement).style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLSpanElement).style.background = 'rgba(255,255,255,0.9)';
-          (e.currentTarget as HTMLSpanElement).style.transform = 'translateX(-50%) translateY(0px)';
-          (e.currentTarget as HTMLSpanElement).style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-        }}
-      >
-        ← Go Back
-      </span>
-      {/* Section 1: Product Details */}
-      <div className="flex flex-col md:flex-row gap-8 max-w-4xl mx-auto py-12 px-4" style={{ paddingBottom: taskbarHeight, paddingTop: 120 }}>
-        {/* Images */}
-        <div className="flex w-full md:w-1/2 flex-col items-center gap-4">
-          <div className="relative w-full max-w-sm md:max-w-full aspect-square rounded-xl overflow-hidden bg-white shadow-sm">
-            <Image src={selectedImage} alt={PRODUCT.name} fill sizes="(max-width: 768px) 90vw, 420px" style={{ objectFit: "contain", background: "#fff" }} priority />
+      <ProductPageBrandHeader />
+
+
+      <main className="bg-[#fbf5ed] pb-[60px] pt-16 md:pt-20 lg:pt-24">
+        <div className="mx-auto w-full max-w-[1280px] px-6 text-center lg:px-12 lg:text-left lg:grid lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] lg:items-start lg:gap-14" style={{ minHeight: '75vh' }}>
+          {/* IMAGE COLUMN */}
+          <div className="relative mx-auto aspect-[4/5] w-full lg:mx-0 lg:max-w-[620px] lg:row-span-3">
+            <ProductImageGallery
+              productName={PRODUCT.name}
+              options={[
+                {
+                  name: "Default",
+                  images: FOREST_HILLS_HAT_IMAGES,
+                },
+              ]}
+              selectedOption={{
+                name: "Default",
+                images: FOREST_HILLS_HAT_IMAGES,
+              } as ProductImageGalleryOption}
+              selectedImage={selectedImage}
+              onImageChange={(image) => {
+                setSelectedImage(image);
+                setCurrentImageIndex(FOREST_HILLS_HAT_IMAGES.indexOf(image));
+              }}
+              className="h-full w-full"
+              frameBackground="transparent"
+            />
           </div>
-          <div className="flex gap-2 justify-center">
-            {greenHatImages.map((img) => (
-              <button key={img} onClick={() => setSelectedImage(img)} className={`relative w-16 h-16 rounded border ${selectedImage === img ? "ring-2 ring-black" : ""}`}>
-                <Image src={img} alt={PRODUCT.name} fill style={{ objectFit: "contain", background: "#fff" }} />
-              </button>
-            ))}
+
+          {/* INFO COLUMN */}
+          <div className="mt-8 flex flex-col items-center lg:col-start-2 lg:items-start lg:mt-0">
+            <h1 className="text-[24px] uppercase tracking-[0.08em] leading-tight text-[#1d1c19] font-avenir-black">
+              {PRODUCT.name}
+            </h1>
+
+            {!isSurveyMode && (
+              <>
+                {isOnStPats ? (
+                  <>
+                    <p className="mt-2 text-[26px] font-black text-gray-400">—</p>
+                  </>
+                ) : (
+                  <p className="mt-2 text-[26px] font-black text-[#1d1c19]">Coming Soon</p>
+                )}
+                {isOnStPats && (
+                  <StPatsBanner colorName="Lime Green" />
+                )}
+              </>
+            )}
+
+            {/* DESCRIPTION SECTION */}
+            <div className="w-full text-center lg:text-left mt-5">
+              <p className="px-1 text-[14px] leading-relaxed text-[#3d372f]">
+                {formatText(PRODUCT.description, "Forest Hills Hat", ["Forest", "Hills", "Lime", "Green", ""])}
+              </p>
+            </div>
+
+            {/* DETAILS SECTION */}
+            <div className="w-full text-left mt-8">
+              <p className="text-base font-semibold text-[#1d1c19]">Details</p>
+              <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-[#1d1c19]">
+                {PRODUCT.details.map((detail) => (
+                  <li key={detail}>{formatText(detail, "Forest Hills Hat", ["Forest", "Hills", "Lime", "Green", ""])}</li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
-        {/* Product Info */}
-        <div className="md:w-1/2 flex flex-col justify-start">
-          <h1 className="text-3xl font-bold mb-2">{PRODUCT.name}</h1>
-          <p className="text-lg text-gray-700 mb-4">{PRODUCT.description}</p>
-          {PRODUCT.details && PRODUCT.details.length > 0 && (
-            <ul className="list-disc list-inside text-sm text-gray-700 mb-6">
-              {PRODUCT.details.map((d, idx) => (
-                <li key={idx} className="mb-1">{d}</li>
+
+        {/* YOU MAY ALSO LIKE SECTION */}
+        <div className="mx-auto w-full max-w-[1200px] px-6 text-center lg:px-12">
+          <div className="mt-12">
+            <p className="text-[22px] font-black uppercase tracking-[0.32em] text-[#1d1c19]">
+              You May Also Like
+            </p>
+            <div className="mt-6 grid w-full grid-cols-2 gap-x-5 gap-y-10 text-left sm:grid-cols-3 lg:grid-cols-4">
+              {boughtTogetherItems.map((product) => (
+                <div key={`${product.name}-${product.image}`} className="flex flex-col hover:shadow-lg transition-shadow rounded-lg">
+                  <div className="relative aspect-[4/5] w-full overflow-hidden border border-[#1d1c19] bg-white">
+                    <img src={product.image} alt={product.name} className="h-full w-full object-cover" />
+                  </div>
+                  <p className="mt-4 text-[11px] font-black uppercase tracking-[0.34em] text-[#1d1c19]">
+                    {product.name}
+                  </p>
+                  <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.34em] text-[#1d1c19]">
+                    Coming Soon
+                  </p>
+                </div>
               ))}
-            </ul>
-          )}
-          <div className="text-2xl font-semibold mb-6"><Price price={PRODUCT.price} /></div>
-          <button className="bg-black text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-800 mb-2" onClick={handleAddToCart}>
-            Add to Cart
-          </button>
+            </div>
+          </div>
         </div>
-      </div>
-      {/* Section 2: Frequently Bought Together */}
-      <FrequentlyBoughtTogether
-        products={boughtTogetherItems}
-        onAddToCart={(product) => {
-          addToCart({
-            productId: product.id,
-            name: product.name,
-            price: product.price,
-            image: product.image,
-            quantity: 1,
-          });
-          setShowPopup(true);
-          setTimeout(() => setShowPopup(false), 1500);
-        }}
-        onAddAllToCart={(products) => {
-          products.forEach(product => {
-            addToCart({
-              productId: product.id,
-              name: product.name,
-              price: product.price,
-              image: product.image,
-              quantity: 1,
-            });
-          });
-          setShowPopup(true);
-          setTimeout(() => setShowPopup(false), 1500);
-        }}
-      />
-  {/* Section 3: Customer Reviews */}
-  <CustomerReviews productId="forest-hills-hat" />
-      {/* Minimalistic cart taskbar at bottom if cart has items */}
-      {items.length > 0 && !showPopup && (
-        <div className="fixed left-0 right-0 bottom-0 z-50 bg-black text-white px-2 py-3 md:px-4 md:py-4 flex items-center justify-between" style={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, boxShadow: '0 4px 24px 0 rgba(0,0,0,0.18)', borderBottom: 'none' }}>
-          <span className="font-medium text-sm md:text-base">Cart</span>
-          <div className="flex items-center gap-2 md:gap-3">
-            <span className="inline-block bg-white text-black rounded px-2 py-1 md:px-3 font-bold text-sm md:text-base">{items.reduce((sum, i) => sum + i.quantity, 0)}</span>
-            <a href="/cart" className="ml-1 md:ml-2 px-3 py-2 md:px-4 md:py-2 bg-white text-black rounded font-semibold hover:bg-gray-200 text-xs md:text-base" style={{ textDecoration: 'none' }}>Head to Cart</a>
+      </main>
+
+      {!isSurveyMode ? (
+        <ProductPurchaseBar
+          price={isOnStPats ? stPatsSalePrice : PRODUCT.price}
+          summaryLabel="LIME GREEN"
+          sizeOptions={sizeOptions}
+          selectedSize={selectedSize}
+          onSelectSize={setSelectedSize}
+          onAddToCart={handleAddToCart}
+        />
+      ) : (
+        <div className="fixed inset-x-0 bottom-0 z-[10004]">
+          <div className="w-full pb-[calc(env(safe-area-inset-bottom,0px)+10px)]">
+            <div className="relative flex overflow-hidden border-t border-white bg-gray-800 text-white shadow-[0_-14px_40px_rgba(0,0,0,0.35)]">
+              <div className="flex h-full w-full items-center justify-center py-4 px-6">
+                <span className="text-[13px] font-semibold uppercase tracking-[0.18em]">
+                  More Information Coming Soon
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       )}

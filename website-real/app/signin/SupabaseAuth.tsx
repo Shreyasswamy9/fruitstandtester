@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import Link from 'next/link';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
@@ -38,6 +38,7 @@ export default function SupabaseAuth({ mode = 'sign_in' }: SupabaseAuthProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [redirectTo, setRedirectTo] = useState<string | undefined>(undefined);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const isSignUp = mode === 'sign_up';
 
   const rawRedirect = searchParams?.get('redirect') ?? null;
@@ -49,103 +50,147 @@ export default function SupabaseAuth({ mode = 'sign_in' }: SupabaseAuthProps) {
     return rawRedirect.startsWith('/') ? rawRedirect : `/${rawRedirect}`;
   }, [rawRedirect]);
 
+  // Define oppositeAuthHref for switching between sign in and sign up
+  const oppositeAuthHref = isSignUp ? '/signin' : '/signup';
+
   useEffect(() => {
     if (!authCode) return;
-
     const finalizeOAuth = async () => {
       const { error } = await supabase.auth.exchangeCodeForSession(authCode);
       if (error) {
         console.error('Supabase OAuth exchange failed:', error);
       }
     };
-
     finalizeOAuth();
   }, [authCode]);
 
+  // Welcome email sent ref must be outside useEffect
+  const welcomeEmailSentRef = useRef<string | null>(null);
+  const signupEmailRef = useRef<string | null>(null);
+
+  // Watch for signup success messages in DOM (Supabase Auth UI)
   useEffect(() => {
-    let isMounted = true;
-
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!isMounted || !session) return;
-      router.replace(safeRedirect);
+    if (!isSignUp) return;
+    
+    // Capture email from input field changes
+    const captureEmail = () => {
+      const emailInput = document.querySelector('input[type="email"]') as HTMLInputElement;
+      if (emailInput?.value) {
+        signupEmailRef.current = emailInput.value;
+      }
     };
-
-    checkSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        router.replace(safeRedirect);
+    
+    // Set up interval to capture email as user types
+    const emailCapture = setInterval(captureEmail, 500);
+    
+    const observer = new MutationObserver(() => {
+      // Look for success message from Supabase Auth UI
+      const alerts = document.querySelectorAll('[role="alert"], .supabase-auth-ui_ui-message');
+      
+      for (const alert of alerts) {
+        const messageText = alert.textContent || '';
+        
+        if (messageText.toLowerCase().includes('check your email')) {
+          const email = signupEmailRef.current;
+          
+          if (email) {
+            // Redirect to confirm account page immediately
+            setTimeout(() => {
+              router.replace(`/confirm-account?email=${encodeURIComponent(email)}`);
+            }, 100);
+            observer.disconnect();
+            clearInterval(emailCapture);
+            return;
+          }
+        }
       }
     });
+    
+    observer.observe(document.body, { 
+      childList: true, 
+      subtree: true,
+      characterData: true
+    });
+    
+    return () => {
+      observer.disconnect();
+      clearInterval(emailCapture);
+    };
+  }, [isSignUp, router]);
 
+  useEffect(() => {
+    let isMounted = true;
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!isMounted) return;
+      if (session) {
+        // Send welcome email only once per session
+        if (session.user?.id && welcomeEmailSentRef.current !== session.user.id) {
+          fetch('/api/emails/welcome', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json'
+            }
+          }).finally(() => {
+            welcomeEmailSentRef.current = session.user.id;
+          });
+        }
+        router.replace(safeRedirect);
+      }
+    };
+    checkSession();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state change:', event, 'Session:', !!session, 'isSignUp:', isSignUp);
+      
+      // OAuth: session exists, redirect to /account
+      if (event === 'SIGNED_IN' && session) {
+        if (session.user?.id && welcomeEmailSentRef.current !== session.user.id) {
+          fetch('/api/emails/welcome', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json'
+            }
+          }).finally(() => {
+            welcomeEmailSentRef.current = session.user.id;
+          });
+        }
+        router.replace(safeRedirect);
+        return;
+      }
+    });
     return () => {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, [router, safeRedirect]);
+  }, [router, safeRedirect, searchParams, isSignUp]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const origin = window.location.origin;
-    const basePath = mode === 'sign_up' ? '/signup' : '/signin';
-    const signinUrl = new URL(basePath, origin);
-    if (safeRedirect) {
-      signinUrl.searchParams.set('redirect', safeRedirect);
-    }
-    setRedirectTo(signinUrl.toString());
-  }, [mode, safeRedirect]);
-
-  const oppositeAuthHref = useMemo(() => {
-    const base = isSignUp ? '/signin' : '/signup';
-    if (!safeRedirect) return base;
-    const params = new URLSearchParams({ redirect: safeRedirect });
-    return `${base}?${params.toString()}`;
-  }, [isSignUp, safeRedirect]);
-
-  const copy = useMemo(() => {
-    if (isSignUp) {
-      return {
-        badge: 'Join FRUITSTAND®',
-        heading: (
-          <>
-            Create your
-            {' '}
-            <span className="font-semibold">account</span>
-          </>
-        ),
-        description:
-          'Unlock drops, track orders, and personalize your FRUITSTAND experience with a single login.',
-        bullets: [
+    // All JSX is now in render, not in objects
+    const badge = isSignUp ? 'Join ®' : 'Secure Account Access';
+    const heading = isSignUp
+      ? <span>Create your <span className="font-semibold">account</span></span>
+      : <span>Welcome <span className="font-semibold">back</span></span>;
+    const description = isSignUp
+      ? 'Unlock drops, track orders, and personalize your  experience with a single login.'
+      : 'Sign in to manage orders, track shipments, and personalize your ® experience.';
+    const bullets = isSignUp
+      ? [
           'Access new releases before anyone else',
           'Save your favorite fits for later',
           'Faster checkout and order tracking'
-        ],
-      };
-    }
-
-    return {
-      badge: 'Secure Account Access',
-      heading: (
-        <>
-          Welcome <span className="font-semibold">back</span>
-        </>
-      ),
-      description:
-        'Sign in to manage orders, track shipments, and personalize your FRUITSTAND® experience.',
-      bullets: [
-        'Order history & tracking',
-        'Manage saved addresses',
-        'Exclusive promotions'
-      ],
-    };
-  }, [isSignUp]);
+        ]
+      : [
+          'Order history & tracking',
+          'Manage saved addresses',
+          'Exclusive promotions'
+        ];
 
   return (
   <div className="min-h-screen bg-[#fbf6f0] text-gray-900 overflow-hidden relative">
       {/* Subtle light decorative background */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-white via-white to-white" />
+        <div className="absolute inset-0 bg-linear-to-br from-white via-white to-white" />
         <div className="absolute -top-24 -left-24 w-72 h-72 bg-pink-200/40 rounded-full blur-3xl" />
         <div className="absolute top-1/3 -right-32 w-80 h-80 bg-blue-200/40 rounded-full blur-3xl" />
         <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-purple-200/30 rounded-full blur-3xl" />
@@ -157,16 +202,16 @@ export default function SupabaseAuth({ mode = 'sign_in' }: SupabaseAuthProps) {
             {/* Left branding / intro */}
             <div className="space-y-6">
               <span className="inline-block px-4 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium tracking-wide shadow-sm">
-                {copy.badge}
+                {badge}
               </span>
               <h1 className="text-5xl md:text-6xl font-light leading-tight">
-                {copy.heading}
+                {heading}
               </h1>
               <p className="text-lg text-gray-600 max-w-md">
-                {copy.description}
+                {description}
               </p>
               <ul className="space-y-2 text-sm text-gray-600">
-                {copy.bullets.map((bullet) => (
+                {bullets.map((bullet) => (
                   <li key={bullet} className="flex items-center gap-2">
                     <span className="inline-block w-2 h-2 rounded-full bg-gray-400" />
                     {bullet}
@@ -177,12 +222,12 @@ export default function SupabaseAuth({ mode = 'sign_in' }: SupabaseAuthProps) {
 
             {/* Auth card */}
             <div className="relative">
-              <div className="absolute -inset-1 bg-gradient-to-tr from-gray-200 via-gray-100 to-white rounded-3xl blur-sm" aria-hidden="true" />
+              <div className="absolute -inset-1 bg-linear-to-tr from-gray-200 via-gray-100 to-white rounded-3xl blur-sm" aria-hidden="true" />
               <div className="relative bg-white rounded-3xl shadow-[0_4px_24px_-4px_rgba(0,0,0,0.08),0_2px_8px_-2px_rgba(0,0,0,0.06)] border border-gray-200 p-6 md:p-10">
                 <Auth
                   supabaseClient={supabase}
                   appearance={appearance}
-                  providers={['google','apple']}
+                  providers={['google']}
                   socialLayout="horizontal"
                   redirectTo={redirectTo}
                   showLinks={false}

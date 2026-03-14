@@ -1,0 +1,1186 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import Link from "next/link"
+import { motion } from "framer-motion"
+import { useCart, type CartItem } from "../../components/CartContext"
+import Image from "next/image"
+import Price from '@/components/Price'
+import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js"
+import type { Appearance } from "@stripe/stripe-js"
+import { stripePromise, useCheckout, useStripeCheckout, type CheckoutItem, type CustomerCheckoutPayload } from "../../hooks/useCheckout"
+import { supabase } from "../supabase-client"
+import { useRouter } from "next/navigation"
+import type { User } from "@supabase/supabase-js"
+
+const ORDER_NUMBER_STORAGE_KEY = 'latestOrderNumber';
+
+// Simplified Payment Section for logged-in users
+type PaymentSectionProps = {
+  total: number;
+  items: CartItem[];
+  processing: boolean;
+  setProcessing: (value: boolean) => void;
+  message: string | null;
+  setMessage: React.Dispatch<React.SetStateAction<string | null>>;
+  elementsReady: boolean;
+  setElementsReady: (ready: boolean) => void;
+  orderNumber: string | null;
+};
+
+const PaymentSection: React.FC<PaymentSectionProps> = ({
+  total,
+  items,
+  processing,
+  setProcessing,
+  message,
+  setMessage,
+  elementsReady,
+  setElementsReady,
+  orderNumber,
+}) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  const itemCount = useMemo(
+    () => items.reduce((sum, item) => sum + item.quantity, 0),
+    [items]
+  );
+  const previewItems = useMemo(() => items.slice(0, 3), [items]);
+
+  const confirmPayment = useCallback(
+    async () => {
+      if (processing) {
+        return;
+      }
+
+      if (!stripe || !elements) {
+        setMessage('Payment form is still loading. Please try again in a moment.');
+        return;
+      }
+
+      setProcessing(true);
+      setMessage(null);
+
+      const baseReturnUrl =
+        typeof window !== 'undefined'
+          ? `${window.location.origin}/order/complete`
+          : `${process.env.NEXT_PUBLIC_BASE_URL ?? ''}/order/complete`;
+
+      let returnUrl = baseReturnUrl;
+
+      if (orderNumber && /^\d{6}$/.test(orderNumber)) {
+        if (typeof window !== 'undefined') {
+          try {
+            window.sessionStorage.setItem(ORDER_NUMBER_STORAGE_KEY, orderNumber);
+          } catch (error) {
+            console.warn('Unable to persist order number to session storage', error);
+          }
+        }
+
+        try {
+          const composed = new URL(baseReturnUrl);
+          composed.searchParams.set('order_number', orderNumber);
+          returnUrl = composed.toString();
+        } catch {
+          const separator = baseReturnUrl.includes('?') ? '&' : '?';
+          returnUrl = `${baseReturnUrl}${separator}order_number=${encodeURIComponent(orderNumber)}`;
+        }
+      }
+
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: returnUrl,
+        },
+        redirect: 'if_required',
+      });
+
+      if (error) {
+        setMessage(error.message ?? 'We could not process your payment. Please try again.');
+      } else if (paymentIntent?.status === 'succeeded') {
+        setMessage('Payment approved. Redirecting…');
+      }
+
+      setProcessing(false);
+    },
+    [elements, processing, orderNumber, setMessage, setProcessing, stripe]
+  );
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-3xl bg-[#f7ede0] text-gray-900 p-5 shadow-lg border border-white/60">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.35em] text-gray-700/70">Total due today</p>
+            <p className="mt-2 text-3xl font-semibold text-gray-900">${total.toFixed(2)}</p>
+            <p className="mt-2 text-xs text-gray-700/70">
+              {itemCount} item{itemCount !== 1 ? 's' : ''} • includes tax & shipping
+            </p>
+          </div>
+          <div className="flex -space-x-4">
+            {previewItems.map((item) => (
+              <div
+                key={item.lineId ?? item.productId}
+                className="relative h-12 w-12 rounded-xl border border-white/70 overflow-hidden bg-white/60 backdrop-blur"
+              >
+                {item.image ? (
+                  <Image
+                    src={item.image}
+                    alt={item.name}
+                    fill
+                    className="object-cover"
+                    sizes="48px"
+                  />
+                ) : (
+                  <div className="h-full w-full flex items-center justify-center text-[10px] text-gray-700/80">
+                    {item.name.slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+                <span className="absolute -bottom-1 -right-1 rounded-full bg-white px-1 text-[10px] font-semibold text-gray-900">
+                  ×{item.quantity}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 sm:p-6 space-y-6 shadow-sm">
+        <div>
+          <h3 className="text-base font-semibold text-gray-900">Complete your payment</h3>
+          <p className="text-xs text-gray-500 mt-1">Enter your payment details to complete the purchase.</p>
+          <div className="mt-4">
+            <PaymentElement onReady={() => setElementsReady(true)} />
+          </div>
+        </div>
+        
+        <button
+          type="button"
+          onClick={() => confirmPayment()}
+          disabled={processing || !elementsReady}
+          className="w-full py-4 bg-black text-white font-semibold rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {processing ? 'Processing…' : `Pay $${total.toFixed(2)}`}
+        </button>
+
+        {message && (
+          <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+            {message}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default function CartPage() {
+  // Streamlined checkout: logged-in users see payment element, guests use Stripe Checkout
+  const [checkingOut, setCheckingOut] = useState(false)
+  const [checkingOut, setCheckingOut] = useState(false)
+  const { items, removeFromCart, clearCart, addToCart } = useCart();
+  const { createPaymentIntent, loading: intentLoading, error: checkoutError, setError: setCheckoutError } = useCheckout();
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  clientSecretRef.current = null;
+  orderNumberRef.current = null;
+  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [paymentMessage, setPaymentMessage] = useState<string | null>(null);
+  const [elementsReady, setElementsReady] = useState(false);
+  const [isSignedIn, setIsSignedIn] = useState(false)
+  const [user, setUser] = React.useState<User | null>(null)
+  const clientSecretRef = useRef<string | null>(null);
+  const orderNumberRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      const { data } = await supabase.auth.getUser()
+      if (!mounted) return
+      setUser(data.user ?? null)
+      setIsSignedIn(!!data.user)
+    })()
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      const u = session?.user ?? null
+      setUser(u)
+      setIsSignedIn(!!u)
+    })
+
+    return () => {
+      mounted = false
+      listener.subscription.unsubscribe()
+    }
+  }, [])
+  const router = useRouter();
+
+  const resolveOrderNumber = useCallback((): string | null => {
+    if (orderNumberRef.current) {
+      return orderNumberRef.current;
+    }
+    if (typeof window === 'undefined') {
+      return null;
+    }
+    try {
+      return window.sessionStorage.getItem(ORDER_NUMBER_STORAGE_KEY);
+    } catch (error) {
+      console.warn('Unable to read order number from session storage', error);
+      return null;
+    }
+  }, []);
+
+  const rememberOrderNumber = useCallback((value?: string | null) => {
+    if (!value || !/^\d{6}$/.test(value)) {
+      return;
+    }
+    orderNumberRef.current = value;
+    if (typeof window !== 'undefined') {
+      try {
+        window.sessionStorage.setItem(ORDER_NUMBER_STORAGE_KEY, value);
+      } catch (error) {
+        console.warn('Unable to persist order number to session storage', error);
+      }
+    }
+  }, []);
+
+  const getCartTotal = () => items.reduce((total, item) => total + (Number(item.price) * item.quantity), 0);
+
+  // Coupon functionality removed per request
+
+  const handleRemove = (productId: string) => {
+    // `productId` may be a lineId (preferred) or a productId for backwards compatibility
+    const item = items.find(i => i.lineId === productId) || items.find(i => i.productId === productId);
+    const label = item ? `${item.name}${item.size ? ' — ' + item.size : ''}` : 'this item';
+    if (typeof window === 'undefined' || window.confirm(`Remove ${label} from your cart?`)) {
+      removeFromCart(productId);
+    }
+  };
+
+  const handleClearCart = () => {
+    if (typeof window === 'undefined' || window.confirm('Are you sure you want to clear your entire cart?')) {
+      clearCart();
+    }
+  };
+
+  const updateQuantity = (id: string, newQuantity: number) => {
+    if (newQuantity <= 0) {
+      handleRemove(id);
+      return;
+    }
+
+    const item = items.find(i => i.lineId === id) || items.find(i => i.productId === id);
+    if (item) {
+      // Remove the specific line first (use its lineId if available)
+      removeFromCart(item.lineId ?? item.productId);
+      // Add it back with new quantity
+      addToCart({ ...item, quantity: newQuantity });
+    }
+  };
+
+  // Subtotal (no per-item sale/coupon applied)
+  const subtotal = getCartTotal();
+  // Shipping thresholds based on subtotal
+  const shipping = subtotal >= 20 ? 0 : 8.99;
+  const isPriorityShipping = subtotal >= 125;
+  const finalShipping = shipping;
+  const tax = subtotal * 0.08875; // NY tax rate
+  const total = subtotal + finalShipping + tax;
+
+  const appearance = useMemo<Appearance>(() => ({
+    theme: 'stripe',
+    variables: {
+      colorPrimary: '#111827',
+      colorText: '#111827',
+      borderRadius: '14px',
+      fontFamily: '"Inter", "Helvetica Neue", Helvetica, Arial, sans-serif',
+      spacingUnit: '6px',
+    },
+    rules: {
+      '.Input': { borderRadius: '12px', padding: '14px 12px' },
+      '.Block': { borderRadius: '14px' },
+      '.Tab': { borderRadius: '12px' },
+    },
+  }), []);
+
+  const normalizedItems = useMemo<CheckoutItem[]>(() => (
+    items.map((item) => ({
+      productId: item.productId,
+      name: item.name,
+      price: Number(item.price ?? 0),
+      quantity: item.quantity,
+      image: item.image,
+      size: item.size,
+      color: item.color,
+    }))
+  ), [items]);
+
+  const elementsOptions = useMemo(() => (
+    clientSecret ? { clientSecret, appearance } : undefined
+  ), [appearance, clientSecret]);
+
+  useEffect(() => {
+    if (!normalizedItems.length) {
+      setClientSecret(null);
+      setPaymentIntentId(null);
+      setElementsReady(false);
+      clientSecretRef.current = null;
+      return;
+    }
+
+    let active = true;
+
+    (async () => {
+      try {
+        const result = await createPaymentIntent({
+          items: normalizedItems,
+          shipping: finalShipping,
+          tax,
+          paymentIntentId: paymentIntentId ?? undefined,
+        });
+
+        if (!active) return;
+        const secretChanged = result.clientSecret !== clientSecretRef.current;
+        clientSecretRef.current = result.clientSecret;
+        setClientSecret(result.clientSecret);
+        setPaymentIntentId(result.paymentIntentId);
+        rememberOrderNumber(result.orderNumber);
+        // Avoid disabling the checkout button when the Stripe element stays mounted.
+        setElementsReady(!secretChanged);
+        setPaymentMessage(null);
+        setCheckoutError(null);
+      } catch (error) {
+        if (!active) return;
+        const message = error instanceof Error ? error.message : 'Unable to initialise payment.';
+        setPaymentMessage(message);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [normalizedItems, finalShipping, tax, createPaymentIntent, rememberOrderNumber]);
+
+  useEffect(() => {
+    if (checkoutError) {
+      setPaymentMessage(checkoutError);
+    }
+  }, [checkoutError]);
+
+  // Available offers removed (no coupons/promos)
+
+  // Validation functions
+  const validateEmail = (email: string): string => {
+    if (!email) return "Email is required";
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) return "Please enter a valid email address";
+    return "";
+  };
+
+  const validateZipCode = (zipCode: string): string => {
+    if (!zipCode) return "ZIP code is required";
+    const zipRegex = /^\d{5}(-\d{4})?$/;
+    if (!zipRegex.test(zipCode)) return "Please enter a valid ZIP code (e.g., 12345 or 12345-6789)";
+    return "";
+  };
+
+  const validatePhone = (phone: string): string => {
+    // Phone is optional and we no longer enforce a strict phone number format for guest checkout.
+    // Return an empty string to indicate no validation error.
+    return "";
+  };
+
+  const validateRequired = (value: string, fieldName: string): string => {
+    if (!value || value.trim() === "") return `${fieldName} is required`;
+    return "";
+  };
+
+  const validateField = (field: string, value: string): string => {
+    switch (field) {
+      case "email":
+        return validateEmail(value);
+      case "firstName":
+        return "";
+      case "lastName":
+        return "";
+      case "phone":
+        return validatePhone(value);
+      case "address.street":
+        return "";
+      case "address.city":
+        return "";
+      case "address.state":
+        return "";
+      case "address.zipCode":
+        return value.trim() ? validateZipCode(value) : "";
+      default:
+        return "";
+    }
+  };
+
+  const handleGuestInputChange = (field: string, value: string | boolean) => {
+    // Clear error for this field when user starts typing
+    if (typeof value === "string") {
+      const errorKey = field.includes(".") ? field.split(".")[1] : field;
+      setGuestFormErrors(prev => {
+        if (!(errorKey in prev)) {
+          return prev;
+        }
+        const nextErrors = { ...prev, [errorKey]: "" };
+        if (paymentMessage === GUEST_DETAILS_ERROR_MESSAGE && Object.values(nextErrors).every(error => !error)) {
+          setPaymentMessage(null);
+        }
+        return nextErrors;
+      });
+    }
+
+    if (field === "phoneCountryCode" && typeof value === "string") {
+      const [iso] = value.split("|");
+      setGuestData(prev => ({
+        ...prev,
+        phoneCountryCode: value,
+        address: {
+          ...prev.address,
+          country: iso || prev.address.country
+        }
+      }));
+      return;
+    }
+
+    // Update the form data
+    if (field.includes(".")) {
+      const [parent, child] = field.split(".");
+      setGuestData(prev => ({
+        ...prev,
+        [parent]: {
+          ...(prev[parent as keyof typeof guestData] as object),
+          [child]: value
+        }
+      }));
+    } else {
+      setGuestData(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    }
+  };
+
+  const validateGuestForm = useCallback((): boolean => {
+    const errors = {
+      email: validateField("email", guestData.email),
+      firstName: validateField("firstName", guestData.firstName),
+      lastName: validateField("lastName", guestData.lastName),
+      phone: validateField("phone", guestData.phone),
+      street: validateField("address.street", guestData.address.street),
+      city: validateField("address.city", guestData.address.city),
+      state: validateField("address.state", guestData.address.state),
+      zipCode: validateField("address.zipCode", guestData.address.zipCode)
+    };
+
+    setGuestFormErrors(errors);
+
+    return !Object.values(errors).some(error => error !== "");
+  }, [guestData]);
+
+  const ensurePaymentIntentReady = useCallback(async (options?: { allowGuestWithoutForm?: boolean; skipIntentRefresh?: boolean }): Promise<boolean> => {
+    const allowGuestWithoutForm = options?.allowGuestWithoutForm ?? false;
+    const skipIntentRefresh = options?.skipIntentRefresh ?? false;
+    if (items.length === 0) {
+      setPaymentMessage('Your cart is empty.');
+      return false;
+    }
+
+    let expressSnapshot: ExpressCheckoutSnapshot | null = null;
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = window.sessionStorage.getItem(EXPRESS_CHECKOUT_CACHE_KEY);
+        expressSnapshot = stored ? (JSON.parse(stored) as ExpressCheckoutSnapshot) : null;
+      } catch (storageError) {
+        console.error('Unable to read express checkout cache', storageError);
+      }
+    }
+
+    if (!isSignedIn && !showGuestCheckout) {
+      if (!allowGuestWithoutForm) {
+        setShowSignInModal(false);
+        setShowGuestCheckout(true);
+        setPaymentMessage('Please complete your contact and shipping details to continue.');
+
+        if (typeof window !== 'undefined') {
+          const target = document.getElementById('guest-checkout');
+          target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        return false;
+      }
+    }
+
+    if (showGuestCheckout) {
+      const valid = validateGuestForm();
+      if (!valid) {
+        setPaymentMessage(GUEST_DETAILS_ERROR_MESSAGE);
+        return false;
+      }
+    }
+
+    if (skipIntentRefresh) {
+      setPaymentMessage(null);
+      return true;
+    }
+
+    try {
+      let guestPayload: GuestCheckoutPayload | undefined;
+      if (showGuestCheckout) {
+        guestPayload = {
+          email: guestData.email || undefined,
+          firstName: guestData.firstName || undefined,
+          lastName: guestData.lastName || undefined,
+          phone: guestData.phone
+            ? `${getDialCodeFromValue(guestData.phoneCountryCode)}${guestData.phone}`
+            : undefined,
+          address: {
+            street: guestData.address.street || undefined,
+            city: guestData.address.city || undefined,
+            state: guestData.address.state || undefined,
+            zipCode: guestData.address.zipCode || undefined,
+            country: guestData.address.country || 'US',
+          },
+        };
+      } else if (!isSignedIn && expressSnapshot?.guest) {
+        guestPayload = expressSnapshot.guest;
+      }
+
+      const customerPayload: CustomerCheckoutPayload | undefined = !showGuestCheckout && user
+        ? {
+            email: user.email || undefined,
+            name: user.user_metadata?.full_name || user.user_metadata?.name || undefined,
+            phone: user.user_metadata?.phone || undefined,
+          }
+        : undefined;
+
+      const result = await createPaymentIntent({
+        items: normalizedItems,
+        shipping: finalShipping,
+        tax,
+        paymentIntentId,
+        guestData: guestPayload,
+        customerData: customerPayload,
+      });
+
+      const secretChanged = result.clientSecret !== clientSecretRef.current;
+      clientSecretRef.current = result.clientSecret;
+      setClientSecret(result.clientSecret);
+      setPaymentIntentId(result.paymentIntentId);
+      rememberOrderNumber(result.orderNumber);
+      // Re-enable payment immediately if we're reusing the same client secret.
+      setElementsReady(!secretChanged);
+      setPaymentMessage(null);
+      setCheckoutError(null);
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.removeItem(EXPRESS_CHECKOUT_CACHE_KEY);
+      }
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to prepare payment. Please try again.';
+      setPaymentMessage(message);
+      return false;
+    }
+  }, [items.length, isSignedIn, showGuestCheckout, validateGuestForm, guestData, user, createPaymentIntent, normalizedItems, finalShipping, tax, paymentIntentId, setCheckoutError, setShowGuestCheckout, setShowSignInModal, rememberOrderNumber]);
+
+  const handleGuestCheckoutSubmit = async () => {
+    const ready = await ensurePaymentIntentReady({ skipIntentRefresh: true });
+    if (ready) {
+      setPaymentMessage(null);
+      setPaymentRevealTick(prev => prev + 1);
+      if (typeof window !== 'undefined') {
+        const target = document.getElementById('payment-section');
+        target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  };
+
+  const handleContinueAsGuest = () => {
+    ensureGuestDetailsVisible();
+  };
+
+  const ensureGuestDetailsVisible = () => {
+    if (isSignedIn) {
+      return;
+    }
+
+    setShowSignInModal(false);
+    setShowGuestCheckout(prev => (prev ? prev : true));
+
+    if (typeof window !== 'undefined') {
+      requestAnimationFrame(() => {
+        const target = document.getElementById('guest-checkout');
+        target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#fbf6f0]">
+      {/* Header */}
+      <div className="bg-white border-b pt-16 pb-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 text-center">
+          <motion.h1
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-2xl sm:text-3xl font-bold text-gray-900 text-center"
+          >
+            Shopping Cart
+          </motion.h1>
+          <p className="text-gray-600 mt-1 mx-auto">
+            {items.length === 0 ? "Your cart is empty" : `${items.length} item${items.length !== 1 ? 's' : ''} in your cart`}
+          </p>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {items.length === 0 ? (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-lg p-12 text-center"
+          >
+            <div className="w-24 h-24 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
+              <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">Your cart is empty</h2>
+            <p className="text-gray-600 mb-8 max-w-md mx-auto">
+              Looks like you haven`t added any items to your cart yet. Start shopping to fill it up!
+            </p>
+            <motion.a
+              href="/shop"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="inline-flex items-center px-8 py-4 bg-black text-white font-semibold rounded-xl hover:bg-gray-800 transition-colors"
+            >
+              Return to Store
+              <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+              </svg>
+            </motion.a>
+          </motion.div>
+        ) : (
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
+            {/* Cart Items */}
+            <div className="order-2 xl:order-1 xl:col-span-2">
+              <motion.div 
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="bg-white rounded-2xl shadow-lg overflow-hidden"
+              >
+                <div className="p-4 sm:p-6 border-b border-gray-200">
+                  <h2 className="text-xl font-semibold text-gray-900">Cart Items</h2>
+                </div>
+                
+                <div className="divide-y divide-gray-200">
+                  {items.map((item, index) => (
+                    <motion.div
+                      key={item.lineId ?? item.productId}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05, duration: 0.3 }}
+                      className="p-4 sm:p-6 hover:bg-gray-50 transition-colors"
+                      style={{ willChange: "transform", backfaceVisibility: "hidden" }}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-4 sm:space-y-0">
+                        {/* Product Image - Clickable */}
+                        {item.isBundle ? (
+                          <div className="relative w-20 h-20 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-gray-100 shrink-0 transition-all duration-200">
+                            <Image
+                              src={item.image}
+                              alt={item.name}
+                              fill
+                              className="object-cover"
+                              sizes="80px"
+                            />
+                            <span className="absolute left-1 top-1 text-[10px] bg-black text-white px-2 py-0.5 rounded">Bundle</span>
+                          </div>
+                        ) : (
+                          <Link 
+                            href={`/shop/${item.productId}`}
+                            className="relative w-20 h-20 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-gray-100 shrink-0 hover:ring-2 hover:ring-black hover:ring-opacity-50 transition-all duration-200 cursor-pointer"
+                          >
+                            <Image
+                              src={item.image}
+                              alt={item.name}
+                              fill
+                              className="object-cover hover:scale-105 transition-transform duration-200"
+                              sizes="80px"
+                            />
+                          </Link>
+                        )}
+                        
+                        {/* Product Details - Full width on mobile */}
+                        <div className="flex-1 min-w-0">
+                          {item.isBundle ? (
+                            <div className="block">
+                              <h3 className="text-lg font-semibold text-gray-900 truncate">{item.name}</h3>
+                              <p className="text-xs text-gray-500">Bundle contents: {Array.isArray(item.bundleItems) ? item.bundleItems.join(', ') : ''}</p>
+                              {item.bundleSize && (
+                                <p className="text-xs text-gray-500">Size: {item.bundleSize}</p>
+                              )}
+                            </div>
+                          ) : (
+                            <Link 
+                              href={`/shop/${item.productId}`}
+                              className="block hover:text-blue-600 transition-colors duration-200"
+                            >
+                              <h3 className="text-lg font-semibold text-gray-900 truncate hover:text-blue-600 transition-colors">
+                                {item.name}
+                              </h3>
+                            </Link>
+                          )}
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 mt-1 space-y-1 sm:space-y-0">
+                            {item.size && (
+                              <span className="text-sm text-gray-500">Size: {item.size}</span>
+                            )}
+                            {item.color && (
+                              <span className="text-sm text-gray-500">Color: {item.color}</span>
+                            )}
+                          </div>
+                          <p className="text-lg font-bold text-gray-900 mt-2">
+                            <Price price={item.price} />
+                          </p>
+                        </div>
+                        
+                        {/* Mobile: Quantity and actions in a row */}
+                        <div className="flex items-center justify-between sm:flex-col sm:items-end sm:space-y-4">
+                          {/* Quantity Controls */}
+                          <div className="flex items-center space-x-2 sm:space-x-3">
+                            <button
+                              onClick={() => updateQuantity(item.lineId ?? item.productId, item.quantity - 1)}
+                              className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-100 transition-colors"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                              </svg>
+                            </button>
+                            
+                            <span className="text-lg font-semibold min-w-8 text-center">
+                              {item.quantity}
+                            </span>
+                            
+                            <button
+                              onClick={() => updateQuantity(item.lineId ?? item.productId, item.quantity + 1)}
+                              className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-100 transition-colors"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                              </svg>
+                            </button>
+                          </div>
+                          
+                          {/* Item Total and Remove - Mobile: side by side, Desktop: stacked */}
+                          <div className="flex items-center space-x-3 sm:flex-col sm:space-x-0 sm:space-y-2 sm:items-end">
+                            <p className="text-lg font-bold text-gray-900">
+                              ${(item.price * item.quantity).toFixed(2)}
+                            </p>
+                            
+                            <button
+                              onClick={() => handleRemove(item.lineId ?? item.productId)}
+                              className="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+                
+                {/* Clear Cart Button */}
+                <div className="p-4 sm:p-6 border-t border-gray-200">
+                  <button
+                    onClick={handleClearCart}
+                    className="w-full py-3 border border-red-300 text-red-600 font-semibold rounded-xl hover:bg-red-50 transition-colors"
+                  >
+                    Clear Cart
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Express Checkout + Summary */}
+            <div className="order-1 xl:order-2 xl:col-span-1 flex flex-col gap-6">
+              {intentLoading && !clientSecret ? (
+                <div className="bg-white border border-gray-200 rounded-2xl p-5 sm:p-6 shadow-sm flex items-center justify-center text-sm text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-gray-500"></div>
+                    <span>Loading payment methods…</span>
+                  </div>
+                </div>
+              ) : clientSecret && elementsOptions ? (
+                <div id="payment-section">
+                  <Elements stripe={stripePromise} options={elementsOptions} key={clientSecret}>
+                    <PaymentSection
+                      total={total}
+                      items={items}
+                      ensureReady={ensurePaymentIntentReady}
+                      processing={paymentProcessing}
+                      setProcessing={setPaymentProcessing}
+                      message={paymentMessage}
+                      setMessage={setPaymentMessage}
+                      elementsReady={elementsReady}
+                      setElementsReady={setElementsReady}
+                      requiresDetails={!isSignedIn}
+                      onRequireDetails={ensureGuestDetailsVisible}
+                      resolveOrderNumber={resolveOrderNumber}
+                      autoRevealTrigger={paymentRevealTick}
+                    />
+                  </Elements>
+                </div>
+              ) : (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 sm:p-6 text-sm text-yellow-800">
+                  Payment methods are not available. Please refresh the page or try again later.
+                </div>
+              )}
+
+              {paymentMessage && (!clientSecret || !elementsOptions) && (
+                <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-600">
+                  {paymentMessage}
+                </div>
+              )}
+
+              <motion.div 
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 w-full xl:sticky xl:top-6"
+              >
+                <h2 className="text-xl font-semibold text-gray-900 mb-6">Order Summary</h2>
+                
+                <div className="space-y-4">
+                  <div className="flex justify-between text-gray-600">
+                    <span>Subtotal</span>
+                    <span>${subtotal.toFixed(2)}</span>
+                  </div>
+
+                  <div className="flex justify-between text-gray-600">
+                    <span>Shipping</span>
+                    <span>{finalShipping === 0 ? 'FREE' : `$${finalShipping.toFixed(2)}`}</span>
+                  </div>
+
+                  <div className="flex justify-between text-gray-600">
+                    <span>Tax</span>
+                    <span>${tax.toFixed(2)}</span>
+                  </div>
+
+                  <div className="border-t border-gray-200 pt-4">
+                    <div className="flex justify-between text-xl font-bold text-gray-900">
+                      <span>Total</span>
+                      <span>${total.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {!isSignedIn && !showGuestCheckout && (
+                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                    <div className="flex items-start space-x-3">
+                      <svg className="w-5 h-5 text-blue-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-semibold text-blue-800 mb-1">Sign In or Continue as Guest</h4>
+                        <p className="text-xs text-blue-700 mb-3">
+                          Sign in for faster checkout and exclusive offers, or continue as a guest.
+                        </p>
+                        <div className="flex flex-col space-y-2">
+                          <button
+                            onClick={() => router.push('/signin')}
+                            className="w-full px-4 py- bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                              Sign In for Faster Checkout
+                            </button>
+                          <button
+                            onClick={handleContinueAsGuest}
+                            className="px-4 py-2 border border-blue-300 text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-50 transition-colors"
+                          >
+                            Continue as Guest
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+
+                <motion.a
+                  href="/shop"
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                  transition={{ duration: 0.15 }}
+                  className="w-full mt-4 py-4 border border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-colors text-center block"
+                  style={{ willChange: "transform" }}
+                >
+                  Return to Store
+                </motion.a>
+
+                {/* Guest Checkout Form - Moved below Continue Shopping */}
+                {showGuestCheckout && (
+                  <div id="guest-checkout" className="mt-6 p-4 bg-gray-50 rounded-xl">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-sm font-semibold text-gray-800">Guest Checkout Information</h4>
+                      <button
+                        onClick={() => setShowGuestCheckout(false)}
+                        className="text-gray-500 hover:text-gray-700 text-sm"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      {/* Contact Information */}
+                      <div>
+                        <h5 className="text-xs font-medium text-gray-700 mb-2">CONTACT INFORMATION</h5>
+                        <p className="text-xs text-gray-500 mb-3">Only your email is required. Names and phone are optional for express wallets.</p>
+                        <div className="space-y-3">
+                          <input
+                            type="email"
+                            name="email"
+                            autoComplete="email"
+                            autoCorrect="off"
+                            autoCapitalize="none"
+                            spellCheck={false}
+                            placeholder="Email address *"
+                            value={guestData.email}
+                            onChange={(e) => handleGuestInputChange("email", e.target.value)}
+                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${
+                              guestFormErrors.email ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                            }`}
+                            required
+                          />
+                          {guestFormErrors.email && (
+                            <p className="text-red-500 text-xs mt-1">{guestFormErrors.email}</p>
+                          )}
+                          <div className="grid grid-cols-2 gap-3">
+                            <input
+                              type="text"
+                              name="given-name"
+                              autoComplete="shipping given-name"
+                              autoCorrect="off"
+                              autoCapitalize="words"
+                              spellCheck={false}
+                              placeholder="First name"
+                              value={guestData.firstName}
+                              onChange={(e) => handleGuestInputChange("firstName", e.target.value)}
+                              className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${
+                                guestFormErrors.firstName ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                              }`}
+                            />
+                            {guestFormErrors.firstName && (
+                              <p className="text-red-500 text-xs mt-1">{guestFormErrors.firstName}</p>
+                            )}
+                            <input
+                              type="text"
+                              name="family-name"
+                              autoComplete="shipping family-name"
+                              autoCorrect="off"
+                              autoCapitalize="words"
+                              spellCheck={false}
+                              placeholder="Last name"
+                              value={guestData.lastName}
+                              onChange={(e) => handleGuestInputChange("lastName", e.target.value)}
+                              className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${
+                                guestFormErrors.lastName ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                              }`}
+                            />
+                            {guestFormErrors.lastName && (
+                              <p className="text-red-500 text-xs mt-1">{guestFormErrors.lastName}</p>
+                            )}
+                          </div>
+                          <div className="flex flex-col sm:flex-row sm:space-x-2 space-y-2 sm:space-y-0">
+                            <select
+                              value={guestData.phoneCountryCode}
+                              onChange={(e) => handleGuestInputChange("phoneCountryCode", e.target.value)}
+                              className="w-full sm:w-50 px-2 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent bg-white"
+                              title="Select country code"
+                            >
+                              {countryCodes.map((country) => (
+                                <option key={`${country.code}-${country.country}`} value={country.value}>
+                                  {country.label}
+                                </option>
+                              ))}
+                            </select>
+                            <input
+                              type="tel"
+                              name="tel"
+                              autoComplete="off"
+                              autoCorrect="off"
+                              autoCapitalize="none"
+                              spellCheck={false}
+                              inputMode="tel"
+                              placeholder="Phone number"
+                              value={guestData.phone}
+                              onChange={(e) => handleGuestInputChange("phone", e.target.value)}
+                              className={`w-full sm:flex-1 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${
+                                guestFormErrors.phone ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                              }`}
+                            />
+                          </div>
+                          {guestFormErrors.phone && (
+                            <p className="text-red-500 text-xs mt-1">{guestFormErrors.phone}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Shipping Address */}
+                      <div>
+                        <h5 className="text-xs font-medium text-gray-700 mb-2">SHIPPING ADDRESS</h5>
+                        <p className="text-xs text-gray-500 mb-3">Optional — digital wallets like Apple Pay or Link will provide this automatically during payment.</p>
+                        <div className="space-y-3">
+                          <input
+                            type="text"
+                            name="street-address"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            autoCapitalize="words"
+                            spellCheck={false}
+                            placeholder="Street address (optional)"
+                            value={guestData.address.street}
+                            onChange={(e) => handleGuestInputChange("address.street", e.target.value)}
+                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${
+                              guestFormErrors.street ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                            }`}
+                          />
+                          {guestFormErrors.street && (
+                            <p className="text-red-500 text-xs mt-1">{guestFormErrors.street}</p>
+                          )}
+                          <div className="grid grid-cols-3 gap-3">
+                            <div>
+                              <input
+                                type="text"
+                                name="address-level2"
+                                autoComplete="shipping address-level2"
+                                autoCorrect="off"
+                                autoCapitalize="words"
+                                spellCheck={false}
+                                placeholder="City"
+                                value={guestData.address.city}
+                                onChange={(e) => handleGuestInputChange("address.city", e.target.value)}
+                                className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${
+                                  guestFormErrors.city ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                                }`}
+                              />
+                              {guestFormErrors.city && (
+                                <p className="text-red-500 text-xs mt-1">{guestFormErrors.city}</p>
+                              )}
+                            </div>
+                            <div>
+                              <input
+                                type="text"
+                                name="address-level1"
+                                autoComplete="shipping address-level1"
+                                autoCorrect="off"
+                                autoCapitalize="characters"
+                                spellCheck={false}
+                                placeholder="State"
+                                value={guestData.address.state}
+                                onChange={(e) => handleGuestInputChange("address.state", e.target.value)}
+                                className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${
+                                  guestFormErrors.state ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                                }`}
+                              />
+                              {guestFormErrors.state && (
+                                <p className="text-red-500 text-xs mt-1">{guestFormErrors.state}</p>
+                              )}
+                            </div>
+                            <div>
+                              <input
+                                type="text"
+                                name="postal-code"
+                                autoComplete="shipping postal-code"
+                                autoCorrect="off"
+                                autoCapitalize="none"
+                                spellCheck={false}
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                placeholder="ZIP / Postal code"
+                                value={guestData.address.zipCode}
+                                onChange={(e) => handleGuestInputChange("address.zipCode", e.target.value)}
+                                className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent ${
+                                  guestFormErrors.zipCode ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                                }`}
+                              />
+                              {guestFormErrors.zipCode && (
+                                <p className="text-red-500 text-xs mt-1">{guestFormErrors.zipCode}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Marketing Preferences */}
+                      <div className="pt-3 border-t border-gray-200">
+                        <div className="space-y-2">
+                          <label className="flex items-start">
+                            <input
+                              type="checkbox"
+                              checked={guestData.marketing.emailUpdates}
+                              onChange={(e) => handleGuestInputChange("marketing.emailUpdates", e.target.checked)}
+                              className="w-4 h-4 text-black border-gray-300 rounded focus:ring-black mt-0.5"
+                            />
+                            <span className="ml-2 text-xs text-gray-600">
+                              Email me about new products and exclusive offers
+                            </span>
+                          </label>
+                          {/* analytics consent removed per request */}
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-gray-200">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-gray-500">
+                            Want faster checkout next time?
+                          </p>
+                            <button 
+                            onClick={() => router.push('/signup')}
+                            className="text-xs text-blue-600 hover:text-blue-700 font-medium">
+                              Create Account
+                            </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Complete Guest Checkout Button */}
+                    <motion.button
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
+                      transition={{ duration: 0.15 }}
+                      onClick={handleGuestCheckoutSubmit}
+                      disabled={items.length === 0 || intentLoading || paymentProcessing}
+                      className="w-full mt-6 py-4 bg-black text-white font-semibold rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ willChange: "transform" }}
+                    >
+                      {paymentProcessing ? (
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                          Preparing payment...
+                        </div>
+                      ) : (
+                        'Review & Pay'
+                      )}
+                    </motion.button>
+                  </div>
+                )}
+                
+                {/* Security Badges */}
+                <div className="mt-8 pt-6 border-t border-gray-200">
+                  <p className="text-xs text-gray-500 text-center mb-4">Secure checkout guaranteed</p>
+                  <div className="flex justify-center space-x-4 opacity-60">
+                    <div className="text-xs text-gray-400">🔒 SSL Secured</div>
+                    <div className="text-xs text-gray-400">✓ Safe Payment</div>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        )}
+      </div>
+
+    </div>
+  )
+}

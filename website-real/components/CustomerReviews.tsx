@@ -80,7 +80,7 @@ const CustomerReviews: React.FC<CustomerReviewsProps> = ({ reviews: initialRevie
                 {[5,4,3,2,1].map(r => <option key={r} value={r}>{r} ★</option>)}
               </select>
             </div>
-            <textarea value={form.review} onChange={(e) => setForm(f => ({ ...f, review: e.target.value }))} placeholder="Write a review" className="w-full border p-2 rounded mt-3 min-h-[80px]" />
+            <textarea value={form.review} onChange={(e) => setForm(f => ({ ...f, review: e.target.value }))} placeholder="Write a review" className="w-full border p-2 rounded mt-3 min-h-20" />
             <div className="flex justify-end mt-3">
               <button type="submit" className="bg-black text-white px-4 py-2 rounded" disabled={submitting}>{submitting ? 'Posting...' : 'Post Review'}</button>
             </div>

@@ -84,38 +84,33 @@ export default function BundlesGrid({ bundles = defaultBundles, products = gridP
                         <Image src={p.image} alt={p.name} fill sizes="112px" style={{ objectFit: 'cover' }} />
                       </div>
                       <p className="text-xs mt-1 font-medium truncate">{p.name}</p>
-                      <p className="text-xs"><Price price={p.price} /></p>
+                      {/* Price hidden for survey/testing mode */}
+                      <p className="text-xs text-gray-400 italic">No price</p>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Price summary */}
+              {/* Price summary hidden for survey/testing mode */}
               <div className="px-4 pt-2 pb-4">
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-sm text-gray-400 italic">
                   <span>Subtotal</span>
-                  <span className="font-medium">{formatPrice(originalSubtotal)}</span>
+                  <span>—</span>
                 </div>
-                {discount > 0 ? (
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Bundle discount</span>
-                    <span>- {formatPrice(discount)}</span>
-                  </div>
-                ) : null}
-                <div className="flex items-center justify-between text-base font-semibold mt-1">
+                <div className="flex items-center justify-between text-base font-semibold mt-1 text-gray-400 italic">
                   <span>Total</span>
-                  <span>{formatPrice(total)}</span>
+                  <span>—</span>
                 </div>
               </div>
 
-              {/* Actions */}
+              {/* Actions: Add to cart disabled for survey/testing mode */}
               <div className="flex items-center gap-3 px-4 pb-4">
                 <button
-                  onClick={() => openBundleSheetFor(b)}
-                  className="flex-1 bg-black text-white py-2.5 rounded-xl font-medium shadow-sm active:opacity-90"
-                  aria-label={`Add ${b.title} bundle to cart`}
+                  className="flex-1 bg-gray-300 text-gray-500 py-2.5 rounded-xl font-medium shadow-sm cursor-not-allowed"
+                  aria-label="Add to cart disabled"
+                  disabled
                 >
-                  Add bundle to cart
+                  Add to cart (disabled)
                 </button>
                 <button
                   onClick={() => { setSelectedForSheet(b.id); setOpenSheet(true) }}

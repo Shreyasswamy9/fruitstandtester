@@ -1,32 +1,66 @@
 "use client";
-import Image from "next/image";
-import FrequentlyBoughtTogether, { FBTProduct, getFBTForPage } from "@/components/FrequentlyBoughtTogether";
-import Price from '@/components/Price';
+import Link from "next/link";
+import { getFBTForPage } from "@/components/FrequentlyBoughtTogether";
 import SizeGuide from "@/components/SizeGuide";
-import CustomerReviews from "@/components/CustomerReviews";
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import ProductImageGallery, { type ProductImageGalleryOption } from "@/components/ProductImageGallery";
 import { useCart } from "../../../components/CartContext";
-import ColorPicker from '@/components/ColorPicker';
+import ProductPageBrandHeader from "@/components/ProductPageBrandHeader";
+import ProductPurchaseBar, { PurchaseColorOption, PurchaseSizeOption } from "@/components/ProductPurchaseBar";
+import { useTrackProductView } from "@/hooks/useTrackProductView";
+import StPatsBanner, { StPatsNudge } from "@/components/StPatsBanner";
+import { isGreenColorOnSale, getStPatsPrice, isStPatsDayActive } from "@/lib/stPatricksDay";
 
-const COLOR_DATA = [
-  { name: "Elmhurst Taro Custard", slug: "elmhurst-taro-custard", color: "#8271c2", img: "/images/products/Track Pants/ELMHURST TARO CUSTARD/P6.png", bg: "#eee9ff", border: "2px solid #d1c8f3" },
-  { name: "Greenpoint Patina Crew", slug: "greenpoint-patina-crew", color: "#58543a", img: "/images/products/Track Pants/Greenpoint Patina Crew/P4.png", bg: "#f1f0e6", border: "2px solid #d2cfba" },
-  { name: "Noho Napoletanos", slug: "noho-napoletanos", color: "#ab8c65", img: "/images/products/Track Pants/NOHO NAPOLETANOS/P7.png", bg: "#f4ecdf", border: "2px solid #e1d2b8" },
-  { name: "The Factory Floor", slug: "the-factory-floor", color: "#1e2744", img: "/images/products/Track Pants/THE FACTORY FLOOR/P1.png", bg: "#e6e9f4", border: "2px solid #c2c8da" },
-  { name: "Vice City Runners", slug: "vice-city-runners", color: "#fddde9", img: "/images/products/Track Pants/VICE CITY RUNNERS/P2.png", bg: "#fff0f6", border: "2px solid #f7c2d8" },
-  { name: "Victory Liberty Club", slug: "victory-liberty-club", color: "#7a273b", img: "/images/products/Track Pants/Victory Liberty Club/P3.png", bg: "#f4dde4", border: "2px solid #e6b8c7" },
-  { name: "Yorkville Black and White Cookies", slug: "yorkville-black-and-white-cookies", color: "#000000", img: "/images/products/Track Pants/YORKVILLE BLACK AND WHITE COOKIES/P5.png", bg: "#f5f5f5", border: "2px solid #d4d4d4" },
+function formatText(text: string, productName: string, colorNames: string[]): string {
+  let lower = text.toLowerCase();
+  const nameRegex = new RegExp(productName, "gi");
+  lower = lower.replace(nameRegex, productName.toUpperCase());
+  colorNames.forEach(color => {
+    const colorRegex = new RegExp(color, "gi");
+    lower = lower.replace(colorRegex, color.toUpperCase());
+  });
+  lower = lower.replace(/(?:^|[.!?]\s+)([a-z])/g, (match) => match.toUpperCase());
+  return lower;
+}
+
+type TrackColorOption = {
+  name: string;
+  slug: string;
+  color: string;
+  images: string[];
+  bg: string;
+  border?: string;
+};
+
+const COLOR_DATA: TrackColorOption[] = [
+  { name: "Elmhurst Taro Custard", slug: "elmhurst-taro-custard", color: "#8271c2", images: ["/images/products/Track Pants/ELMHURST TARO CUSTARD/P6.png"], bg: "#eee9ff", border: "2px solid #d1c8f3" },
+  { name: "Greenpoint Patina Crew", slug: "greenpoint-patina-crew", color: "#58543a", images: ["/images/products/Track Pants/Greenpoint Patina Crew/P4.png"], bg: "#f1f0e6", border: "2px solid #d2cfba" },
+  { name: "Noho Napoletanos", slug: "noho-napoletanos", color: "#ab8c65", images: ["/images/products/Track Pants/NOHO NAPOLETANOS/P7.png"], bg: "#f4ecdf", border: "2px solid #e1d2b8" },
+  { name: "The Factory Floor", slug: "the-factory-floor", color: "#1e2744", images: ["/images/products/Track Pants/THE FACTORY FLOOR/P1.png"], bg: "#e6e9f4", border: "2px solid #c2c8da" },
+  { name: "Vice City Runners", slug: "vice-city-runners", color: "#fddde9", images: ["/images/products/Track Pants/VICE CITY RUNNERS/P2.png"], bg: "#fff0f6", border: "2px solid #f7c2d8" },
+  { name: "Victory Liberty Club", slug: "victory-liberty-club", color: "#7a273b", images: ["/images/products/Track Pants/Victory Liberty Club/P3.png"], bg: "#f4dde4", border: "2px solid #e6b8c7" },
+  { name: "Yorkville Black and White Cookies", slug: "yorkville-black-and-white-cookies", color: "#000000", images: ["/images/products/Track Pants/YORKVILLE BLACK AND WHITE COOKIES/P5.png"], bg: "#f5f5f5", border: "2px solid #d4d4d4" },
 ];
+
+const TRACKPANTS_SWATCH_COLORS: Record<string, [string, string]> = {
+  "elmhurst-taro-custard": ["#e7d9b0", "#7c6bc4"],
+  "greenpoint-patina-crew": ["#1c1c1c", "#58543a"],
+  "noho-napoletanos": ["#f7c8d2", "#ab8c65"],
+  "the-factory-floor": ["#c8cbcd", "#1e2744"],
+  "vice-city-runners": ["#f6c8d4", "#8ec4dd"],
+  "victory-liberty-club": ["#0f4da8", "#7a273b"],
+  "yorkville-black-and-white-cookies": ["#f3f3f3", "#1b1b1b"],
+};
 
 const PRODUCT = {
   name: "Retro Track Pants",
   price: 90,
-  description: "Inspired by classic New York athletic warm-ups, these track pants feature bold color blocking and a relaxed, vintage silhouette designed for movement and comfort. Each colorway pays homage to various motifs, with contrasting panels and an embroidered FRUITSTAND® logo.",
+  description: "Inspired by classic New York athletic warm-ups, these track pants feature bold color blocking and a relaxed, vintage silhouette designed for movement and comfort. Each colorway pays homage to various motifs, with contrasting panels and an embroidered ® logo.",
   details: [
     "100% Nylon shell",
     "Inner mesh lining",
     "Tapered fit",
+    "Quality guaranteed, Free returns.",
     "Made in Sialkot, Pakistan",
   ],
   sizes: ["XS", "S", "M", "L", "XL", "XXL", "XXXL"],
@@ -34,178 +68,244 @@ const PRODUCT = {
 
 export default function TrackPantsPage() {
   const colorOptions = COLOR_DATA;
-  const [selectedColor, setSelectedColor] = useState(colorOptions[0]);
-  const [selectedSize, setSelectedSize] = useState(PRODUCT.sizes[0]);
-  const { addToCart, items } = useCart();
-  const [showPopup, setShowPopup] = useState(false);
-  const router = useRouter();
+  const [selectedColor, setSelectedColor] = useState<TrackColorOption>(colorOptions[0]);
+  const [selectedImage, setSelectedImage] = useState(colorOptions[0].images[0]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const { addToCart } = useCart();
+
+  useTrackProductView({
+    productId: "859d396c-0cd7-4d62-9a95-135ce8efbb82",
+    productName: PRODUCT.name,
+    price: PRODUCT.price,
+    currency: "USD",
+    selectedVariant: {
+      color: selectedColor.name,
+      sku: selectedColor.slug,
+    },
+  });
+
+  const handleSelectColor = useCallback((option: TrackColorOption, ctx?: { image?: string }) => {
+    setSelectedColor(option);
+    setSelectedImage(prev => ctx?.image ?? option.images?.[0] ?? prev);
+    setCurrentImageIndex(0);
+    if (typeof window !== 'undefined' && option.slug) {
+      const basePath = window.location.pathname.split('?')[0];
+      window.history.replaceState(null, '', `${basePath}?color=${option.slug}`);
+    }
+  }, []);
+
+  // Preselect variant via query param (?color=slug) — done at runtime only
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const colorSlug = params.get('color');
+    if (!colorSlug) return;
+    const found = COLOR_DATA.find(c => c.slug === colorSlug);
+    if (found && found.slug !== selectedColor.slug) {
+      handleSelectColor(found);
+    }
+  }, [handleSelectColor, selectedColor.slug]);
+
+  const stPatsSalePrice = getStPatsPrice("track-pants", PRODUCT.price, selectedColor.slug);
+  const isOnStPats = isGreenColorOnSale("track-pants", selectedColor.slug);
+
   const handleAddToCart = () => {
+    if (!selectedSize) return;
     addToCart({
-      productId: `track-pants-${selectedColor.slug}`,
-      name: `${PRODUCT.name} - ${selectedColor.name}`,
-      price: PRODUCT.price,
-      image: selectedColor.img,
+      productId: "859d396c-0cd7-4d62-9a95-135ce8efbb82",
+      name: PRODUCT.name,
+      price: isOnStPats ? stPatsSalePrice : PRODUCT.price,
+      image: selectedImage,
       quantity: 1,
       size: selectedSize,
       color: selectedColor.name,
     });
-    setShowPopup(true);
-    setTimeout(() => setShowPopup(false), 1500);
   };
 
-  // Height of the taskbar (matches py-3 + px-2, but add extra for safety)
-  const taskbarHeight = items.length > 0 && !showPopup ? 64 : 0;
-
   // Example: fetch or compute FBT products dynamically in the future
-  const boughtTogetherItems: FBTProduct[] = getFBTForPage('track-pants');
+  const boughtTogetherItems = getFBTForPage('track-pants');
+
+  const sizeOptions: PurchaseSizeOption[] = useMemo(
+    () => PRODUCT.sizes.map((size) => ({ value: size, label: size })),
+    []
+  );
+
+  const purchaseColorOptions: PurchaseColorOption[] = useMemo(
+    () => COLOR_DATA.map((option) => ({
+      value: option.slug,
+      label: option.name,
+      swatch: option.color,
+    })),
+    []
+  );
 
   
 
   return (
     <div>
-      {/* Go Back button */}
-      <span
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          try { router.back(); } catch { window.history.back(); }
-        }}
-        style={{
-          position: 'fixed',
-          top: 24,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          fontSize: 16,
-          color: '#232323',
-          cursor: 'pointer',
-          fontWeight: 500,
-          zIndex: 10005,
-          userSelect: 'none',
-          background: 'rgba(255, 255, 255, 0.9)',
-          border: '1px solid #e0e0e0',
-          borderRadius: '20px',
-          padding: '8px 16px',
-          textDecoration: 'none',
-          backdropFilter: 'blur(10px)',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-          transition: 'all 0.2s ease',
-          pointerEvents: 'auto',
-        }}
-      >
-        ← Go Back
-      </span>
-  <div className="flex flex-col md:flex-row gap-8 max-w-4xl mx-auto py-12 px-4" style={{ paddingTop: 120, paddingBottom: taskbarHeight }}>
-        <div className="flex w-full md:w-1/2 flex-col items-center gap-4">
-          <div className="relative w-full max-w-sm md:max-w-full aspect-square rounded-xl overflow-hidden shadow-sm" style={{ background: selectedColor.bg }}>
-            <Image src={selectedColor.img} alt={PRODUCT.name} fill sizes="(max-width: 768px) 90vw, 420px" style={{ objectFit: "contain", background: selectedColor.bg }} priority />
+      <ProductPageBrandHeader />
+
+      <main className="bg-[#fbf5ed] pb-15 pt-16 md:pt-20 lg:pt-24">
+        {/* HERO SECTION - Top 75% */}
+        <div className="mx-auto w-full max-w-7xl px-6 text-center lg:px-12 lg:text-left lg:grid lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] lg:items-start lg:gap-14" style={{ minHeight: '75vh' }}>
+          {/* IMAGE */}
+          <div className="relative mx-auto aspect-4/5 w-full lg:mx-0 lg:max-w-155 lg:row-span-3">
+            <ProductImageGallery
+              productName={PRODUCT.name}
+              options={COLOR_DATA.map((color) => ({
+                name: color.name,
+                images: color.images,
+              }))}
+              selectedOption={{
+                name: selectedColor.name,
+                images: selectedColor.images,
+              } as ProductImageGalleryOption}
+              selectedImage={selectedImage}
+              onImageChange={(image) => {
+                setSelectedImage(image);
+                setCurrentImageIndex(selectedColor.images.indexOf(image));
+              }}
+              className="h-full w-full"
+              frameBackground="transparent"
+            />
+          </div>
+
+          {/* TITLE / PRICE / COLORWAY - Single Line */}
+          <div className="mt-8 flex flex-col items-center lg:col-start-2 lg:items-start lg:mt-45">
+            <h1 className="text-[24px] uppercase tracking-[0.08em] leading-tight text-[#1d1c19] font-avenir-black">
+              {PRODUCT.name}
+            </h1>
+            <p className="mt-1 text-[18px] text-[#1d1c19] font-avenir-light">
+              {selectedColor.name.toUpperCase()}
+            </p>
+
+            {isOnStPats ? (
+              <>
+                <p className="mt-2 text-[26px] font-black text-[#1d1c19] line-through opacity-40">Coming Soon</p>
+                <p className="text-[26px] font-black text-[#2e8b2e]">Coming Soon</p>
+              </>
+            ) : (
+              <p className="mt-2 text-[26px] font-black text-[#1d1c19]">Coming Soon</p>
+            )}
+            {isOnStPats && (
+              <StPatsBanner colorName={selectedColor.name} />
+            )}
+            {!isOnStPats && isStPatsDayActive() && (
+              <StPatsNudge colorName="Greenpoint Patina Crew" salePrice={getStPatsPrice("track-pants", PRODUCT.price, "greenpoint-patina-crew")} />
+            )}
+
+            {/* SWATCHES */}
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-3 lg:col-start-2 lg:justify-start">
+              {colorOptions.map((option) => {
+                const isActive = option.slug === selectedColor.slug;
+                const [primaryColor, secondaryColor] =
+                  TRACKPANTS_SWATCH_COLORS[option.slug] ?? [option.color, option.color];
+
+                return (
+                  <button
+                    key={option.slug}
+                    type="button"
+                    onClick={() => handleSelectColor(option)}
+                    aria-label={option.name}
+                    className={[
+                      "appearance-none bg-transparent [-webkit-tap-highlight-color:transparent]",
+                      "h-7 w-7 rounded-full overflow-hidden p-0.5",
+                      "transition-transform duration-150 hover:-translate-y-px",
+                      "focus:outline-none focus:ring-2 focus:ring-[#1d1c19]/35",
+                      isActive ? "ring-2 ring-[#1d1c19]" : "ring-1 ring-[#cfc2b3]",
+                    ].join(" ")}
+                  >
+                    <span
+                      aria-hidden
+                      className="block h-full w-full rounded-full"
+                      style={{
+                        backgroundColor: primaryColor,
+                        backgroundImage: `linear-gradient(135deg, ${primaryColor} 50%, ${secondaryColor} 50%)`,
+                      }}
+                    />
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* SIZE GUIDE */}
+            <div className="mt-2 text-[13px] font-semibold uppercase tracking-[0.34em] text-[#1d1c19] lg:col-start-2 lg:text-left">
+              <SizeGuide
+                productSlug="track-pants"
+                imagePath="/images/size-guides/Size Guide/Track Pant Table.png"
+                buttonLabel="SIZE GUIDE"
+                className="text-[13px] font-semibold uppercase tracking-[0.34em]"
+              />
+            </div>
           </div>
         </div>
-        <div className="md:w-1/2 flex flex-col justify-start">
-          <h1 className="text-3xl font-bold mb-2">{PRODUCT.name}</h1>
-          {/* Color Picker */}
-          <ColorPicker
-            options={colorOptions as any}
-            selectedName={selectedColor.name}
-            onSelect={(opt) => {
-              setSelectedColor(opt as any);
-              if (typeof window !== 'undefined' && opt.slug) window.history.replaceState(null, '', `/shop/track-pants?color=${opt.slug}`);
-            }}
-          />
-          {/* Size Selection */}
-          <div style={{ marginBottom: 18 }}>
-            <p className="text-sm font-medium text-gray-700 mb-3">Size:</p>
-            <div className="size-single-line">
-              {PRODUCT.sizes.map((size) => (
-                <button key={size} className={`size-button px-3 rounded-lg font-semibold border-2 transition-all ${selectedSize === size ? 'border-black bg-black text-white' : 'border-gray-300 bg-white text-black hover:border-gray-400 hover:bg-gray-50'}`} onClick={() => setSelectedSize(size)} type="button">{size}</button>
+
+        {/* DESCRIPTION SECTION */}
+        <div className="mx-auto w-full max-w-225 px-6 text-center lg:px-12 lg:text-left mt-5">
+          <p className="px-1 text-[14px] leading-relaxed text-[#3d372f]">
+            {formatText(PRODUCT.description, "Retro Track Pants", ["Retro", "Track", "Pants", ""])}
+          </p>
+        </div>
+
+        {/* DETAILS SECTION */}
+        <div className="mx-auto w-full max-w-225 px-6 text-left lg:px-12">
+          <div className="mt-8">
+            <p className="text-base font-semibold text-[#1d1c19]">Details</p>
+            <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-[#1d1c19]">
+              {PRODUCT.details.map((detail) => (
+                <li key={detail}>{formatText(detail, "Retro Track Pants", ["Retro", "Track", "Pants", ""])}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {/* YOU MAY ALSO LIKE SECTION */}
+        <div className="mx-auto w-full max-w-300 px-6 text-center lg:px-12">
+          <div className="mt-8">
+            <p className="text-[22px] font-black uppercase tracking-[0.32em] text-[#1d1c19]">
+              You May Also Like
+            </p>
+            <div className="mt-5 grid w-full grid-cols-2 gap-x-4 gap-y-6 text-left sm:grid-cols-3 lg:grid-cols-4">
+              {boughtTogetherItems.map((product) => (
+                  <Link
+                    key={`${product.name}-${product.image}`}
+                    href={`/shop/${product.id}`}
+                    className="flex flex-col hover:shadow-lg transition-shadow rounded-lg"
+                    style={{ textDecoration: 'none' }}
+                  >
+                    <div className="relative aspect-4/5 w-full overflow-hidden border border-[#1d1c19] bg-white">
+                      <img src={product.image} alt={product.name} className="h-full w-full object-cover" />
+                    </div>
+                    <p className="mt-4 text-[11px] font-black uppercase tracking-[0.34em] text-[#1d1c19]">
+                      {product.name}
+                    </p>
+                    <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.34em] text-[#1d1c19]">
+                      Coming Soon
+                    </p>
+                  </Link>
               ))}
             </div>
-            <div className="mt-2"><SizeGuide productSlug="track-pants" imagePath="/images/size-guides/Size Guide/Track Pant Table.png" /></div>
           </div>
-          <div className="mb-4 space-y-4">
-            <p className="text-lg text-gray-700 leading-relaxed">{PRODUCT.description}</p>
-            {PRODUCT.details && (
-              <div>
-                <span className="text-xs uppercase tracking-[0.2em] text-gray-500">Details</span>
-                <ul className="mt-2 list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
-                  {PRODUCT.details.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-          <div className="text-2xl font-semibold mb-6"><Price price={PRODUCT.price} /></div>
-          <button className={`bg-black text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-800 mb-2 ${!selectedSize ? 'opacity-50 cursor-not-allowed' : ''}`} onClick={handleAddToCart}>
-            {!selectedSize ? 'Pick a size to add to cart' : 'Add to Cart'}
-          </button>
         </div>
-      </div>
+      </main>
 
-      {/* Section 2: Frequently Bought Together */}
-      <FrequentlyBoughtTogether
-        products={boughtTogetherItems}
-        onAddToCart={(product) => {
-          addToCart({
-            productId: product.id,
-            name: product.name,
-            price: product.price,
-            image: product.image,
-            quantity: 1,
-            size: selectedSize,
-          });
-          setShowPopup(true);
-          setTimeout(() => setShowPopup(false), 1500);
+      <ProductPurchaseBar
+        price={isOnStPats ? stPatsSalePrice : PRODUCT.price}
+        summaryLabel={selectedColor.name.toUpperCase()}
+        sizeOptions={sizeOptions}
+        selectedSize={selectedSize}
+        onSelectSize={setSelectedSize}
+        colorOptions={purchaseColorOptions}
+        selectedColor={selectedColor.slug}
+        onSelectColor={(value) => {
+          const next = COLOR_DATA.find((option) => option.slug === value);
+          if (next) {
+            handleSelectColor(next);
+          }
         }}
-        onAddAllToCart={(products) => {
-          products.forEach(product => {
-            addToCart({
-              productId: product.id,
-              name: product.name,
-              price: product.price,
-              image: product.image,
-              quantity: 1,
-              size: selectedSize,
-            });
-          });
-          setShowPopup(true);
-          setTimeout(() => setShowPopup(false), 1500);
-        }}
+        onAddToCart={handleAddToCart}
       />
-
-      {/* Section 3: Customer Reviews */}
-      <div
-        style={{
-          scrollSnapAlign: 'start',
-          display: 'flex',
-          alignItems: 'center',
-          background: '#fbf6f0'
-        }}
-        className="py-12 px-4"
-      >
-        <div className="max-w-4xl mx-auto w-full">
-          <CustomerReviews productId="track-pants" />
-        </div>
-      </div>
-
-      {/* Minimalistic cart taskbar at bottom if cart has items */}
-      {items.length > 0 && !showPopup && (
-        <div
-          className="fixed left-0 right-0 bottom-0 z-50 bg-black text-white px-2 py-3 md:px-4 md:py-4 flex items-center justify-between"
-          style={{ borderTopLeftRadius: 16, borderTopRightRadius: 16, boxShadow: '0 4px 24px 0 rgba(0,0,0,0.18)', borderBottom: 'none' }}
-        >
-          <span className="font-medium text-sm md:text-base">Cart</span>
-          <div className="flex items-center gap-2 md:gap-3">
-            <span className="inline-block bg-white text-black rounded px-2 py-1 md:px-3 font-bold text-sm md:text-base">{items.reduce((sum, i) => sum + i.quantity, 0)}</span>
-            <a
-              href="/cart"
-              className="ml-1 md:ml-2 px-3 py-2 md:px-4 md:py-2 bg-white text-black rounded font-semibold hover:bg-gray-200 text-xs md:text-base"
-              style={{ textDecoration: 'none' }}
-            >
-              Head to Cart
-            </a>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

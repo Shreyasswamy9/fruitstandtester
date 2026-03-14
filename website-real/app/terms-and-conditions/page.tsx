@@ -34,11 +34,11 @@ export default function TermsPage() {
           <section className="mb-12 p-6 bg-blue-50 rounded-lg border border-blue-200">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">Plain-Language Summary (Not a Substitute for Full Terms)</h2>
             <ul className="list-disc pl-6 space-y-2 text-gray-700">
-              <li>You must be 18 or have a parent/guardian to use FRUITSTAND.</li>
+              <li>You must be 18 or have a parent/guardian to use .</li>
               <li>Orders can be cancelled if fraudulent, incorrect, or unavailable.</li>
               <li>Returns and refunds are handled under our Return Policy.</li>
               <li>Accounts must be accurate; you&apos;re responsible for keeping your login safe.</li>
-              <li>Intellectual property belongs to FRUITSTAND; user content can be reused for marketing.</li>
+              <li>Intellectual property belongs to ; user content can be reused for marketing.</li>
               <li>SMS/email marketing requires consent, is optional, and you can opt out anytime.</li>
               <li>We limit our liability to what you paid in the last 12 months.</li>
               <li>Disputes are resolved in New York through binding arbitration; no class actions.</li>
@@ -50,8 +50,8 @@ export default function TermsPage() {
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">1. Interpretation and Definitions</h2>
             <div className="space-y-3 text-gray-700 leading-relaxed">
-              <p><strong>Company</strong> refers to {<>FRUITSTAND<sup>®</sup> LLC</>}, a New York limited liability company with its principal office listed in its Articles of Organization at 45 West 60th Street, New York, NY 10023, and its current business operations located at 3730 Review Avenue, Long Island City, NY 11101 (&quot;FRUITSTAND,&quot; &quot;we,&quot; &quot;us,&quot; or &quot;our&quot).</p>
-              <p><strong>Service</strong> refers to the website fruitstandny.com and related ecommerce and digital services.</p>
+              <p><strong>Company</strong> refers to {<><sup>®</sup> LLC</>}, a New York limited liability company with its principal office listed in its Articles of Organization at 45 West 60th Street, New York, NY 10023, and its current business operations located at 3730 Review Avenue, Long Island City, NY 11101 (&quot;,&quot; &quot;we,&quot; &quot;us,&quot; or &quot;our&quot).</p>
+              <p><strong>Service</strong> refers to the website ny.com and related ecommerce and digital services.</p>
               <p><strong>Goods</strong> refers to the items offered for sale on our Service.</p>
               <p><strong>Account</strong> means a unique account created for you to access our Service or parts of our Service.</p>
               <p><strong>You</strong> means the individual accessing or using the Service, or the company or other legal entity on behalf of which such individual is accessing or using the Service.</p>
@@ -62,7 +62,7 @@ export default function TermsPage() {
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">2. Eligibility</h2>
             <ul className="list-disc pl-6 space-y-2 text-gray-700">
-              <li>You must be at least 18 years old to purchase from FRUITSTAND.</li>
+              <li>You must be at least 18 years old to purchase from .</li>
               <li>If you are under 18, you may only use the Service with the involvement and consent of a parent or guardian.</li>
             </ul>
           </section>
@@ -77,7 +77,7 @@ export default function TermsPage() {
               <li>Our Return Policy</li>
               <li>Our Cookie Policy</li>
             </ul>
-            <p className="text-gray-700 leading-relaxed mt-3">These documents together form the entire agreement between you and FRUITSTAND.</p>
+            <p className="text-gray-700 leading-relaxed mt-3">These documents together form the entire agreement between you and .</p>
           </section>
 
           {/* 4. Orders and Payments */}
@@ -134,10 +134,10 @@ export default function TermsPage() {
           {/* 8. Intellectual Property & User Content */}
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">8. Intellectual Property & User Content</h2>
-            <p className="text-gray-700 leading-relaxed mb-3">The Service, including all content and design, is owned by FRUITSTAND and protected by copyright, trademark, and intellectual property laws.</p>
+            <p className="text-gray-700 leading-relaxed mb-3">The Service, including all content and design, is owned by  and protected by copyright, trademark, and intellectual property laws.</p>
             <div className="mb-3">
               <h3 className="text-lg font-medium text-gray-900 mb-2">User Content License</h3>
-              <p className="text-gray-700 leading-relaxed mb-2">By tagging FRUITSTAND or otherwise submitting or sharing content with us (including reviews, photos, or social media posts), you grant FRUITSTAND a worldwide, royalty-free, non-exclusive, transferable license to use, repost, display, distribute, and create derivative works of that content for marketing, advertising, and promotional purposes.</p>
+              <p className="text-gray-700 leading-relaxed mb-2">By tagging  or otherwise submitting or sharing content with us (including reviews, photos, or social media posts), you grant  a worldwide, royalty-free, non-exclusive, transferable license to use, repost, display, distribute, and create derivative works of that content for marketing, advertising, and promotional purposes.</p>
               <p className="text-gray-700 leading-relaxed">To the extent permitted by law, you also waive any moral rights in that content.</p>
             </div>
             <p className="text-gray-700 leading-relaxed">Our trademarks and trade dress may not be used without written permission.</p>
@@ -146,7 +146,7 @@ export default function TermsPage() {
           {/* 9. SMS and Email Communications */}
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">9. SMS and Email Communications</h2>
-            <p className="text-gray-700 leading-relaxed mb-3">By providing your phone number or email, you consent to receive marketing and transactional communications from FRUITSTAND, including SMS messages.</p>
+            <p className="text-gray-700 leading-relaxed mb-3">By providing your phone number or email, you consent to receive marketing and transactional communications from , including SMS messages.</p>
             <ul className="list-disc pl-6 space-y-2 text-gray-700 mb-3">
               <li>Message frequency may vary.</li>
               <li>Message and data rates may apply.</li>
@@ -173,7 +173,7 @@ export default function TermsPage() {
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">12. Limitation of Liability</h2>
             <div className="bg-gray-50 p-4 rounded border border-gray-200">
-              <p className="text-gray-700 leading-relaxed mb-3 font-medium">TO THE FULLEST EXTENT PERMITTED BY LAW, FRUITSTAND AND ITS SUPPLIERS SHALL NOT BE LIABLE FOR INDIRECT, INCIDENTAL, OR CONSEQUENTIAL DAMAGES.</p>
+              <p className="text-gray-700 leading-relaxed mb-3 font-medium">TO THE FULLEST EXTENT PERMITTED BY LAW,  AND ITS SUPPLIERS SHALL NOT BE LIABLE FOR INDIRECT, INCIDENTAL, OR CONSEQUENTIAL DAMAGES.</p>
               <p className="text-gray-700 leading-relaxed mb-3 font-medium">OUR TOTAL LIABILITY SHALL NOT EXCEED THE TOTAL AMOUNT YOU PAID FOR GOODS IN THE 12 MONTHS PRECEDING THE CLAIM.</p>
               <p className="text-gray-700 leading-relaxed font-medium">WE ARE NOT LIABLE FOR ISSUES CAUSED BY THIRD-PARTY PROVIDERS (PAYMENT PROCESSORS, SHIPPING CARRIERS, ETC.).</p>
             </div>
@@ -192,13 +192,13 @@ export default function TermsPage() {
           {/* 14. Indemnification */}
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">14. Indemnification</h2>
-            <p className="text-gray-700 leading-relaxed mb-3">You agree to indemnify, defend, and hold harmless FRUITSTAND, its officers, employees, affiliates, and agents, from and against any claims, liabilities, damages, losses, or expenses (including reasonable attorneys&apos; fees) arising out of or related to your:</p>
+            <p className="text-gray-700 leading-relaxed mb-3">You agree to indemnify, defend, and hold harmless , its officers, employees, affiliates, and agents, from and against any claims, liabilities, damages, losses, or expenses (including reasonable attorneys&apos; fees) arising out of or related to your:</p>
             <ul className="list-disc pl-6 space-y-2 text-gray-700 mb-3">
               <li>Misuse of the Service</li>
               <li>Violation of these Terms</li>
               <li>Violation of intellectual property or privacy rights of others</li>
             </ul>
-            <p className="text-gray-700 leading-relaxed">This indemnity does not apply to claims arising from FRUITSTAND&apos;s own negligence, willful misconduct, or breach of these Terms.</p>
+            <p className="text-gray-700 leading-relaxed">This indemnity does not apply to claims arising from &apos;s own negligence, willful misconduct, or breach of these Terms.</p>
           </section>
 
           {/* 15. Force Majeure */}
@@ -217,11 +217,11 @@ export default function TermsPage() {
           {/* 17. Dispute Resolution; Arbitration and Class Action Waiver */}
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">17. Dispute Resolution; Arbitration and Class Action Waiver</h2>
-            <p className="text-gray-700 leading-relaxed mb-3">You agree to first attempt to resolve disputes informally by contacting <a href="mailto:legal@fruitstandny.com" className="text-blue-600 hover:text-blue-700">legal@fruitstandny.com</a>.</p>
-            <p className="text-gray-700 leading-relaxed mb-3">If unresolved, you and FRUITSTAND agree that any dispute, claim, or controversy arising out of or relating to these Terms, the Service, or any purchase shall be resolved by binding arbitration administered by the American Arbitration Association (&quot;AAA&quot;) under its Consumer Arbitration Rules.</p>
+            <p className="text-gray-700 leading-relaxed mb-3">You agree to first attempt to resolve disputes informally by contacting <a href="mailto:legal@ny.com" className="text-blue-600 hover:text-blue-700">legal@ny.com</a>.</p>
+            <p className="text-gray-700 leading-relaxed mb-3">If unresolved, you and  agree that any dispute, claim, or controversy arising out of or relating to these Terms, the Service, or any purchase shall be resolved by binding arbitration administered by the American Arbitration Association (&quot;AAA&quot;) under its Consumer Arbitration Rules.</p>
             <ul className="list-disc pl-6 space-y-2 text-gray-700 mb-3">
               <li><strong>Venue:</strong> Arbitration shall take place in New York, New York, unless otherwise required by law.</li>
-              <li><strong>Costs:</strong> FRUITSTAND will cover all filing and arbitrator fees required under the AAA Consumer Rules. Each party bears its own attorneys&apos; fees unless otherwise awarded.</li>
+              <li><strong>Costs:</strong>  will cover all filing and arbitrator fees required under the AAA Consumer Rules. Each party bears its own attorneys&apos; fees unless otherwise awarded.</li>
               <li><strong>Class Action Waiver:</strong> You agree to bring claims only in your individual capacity. Class actions, private attorney general actions, and representative proceedings are not permitted.</li>
               <li><strong>Small Claims Exception:</strong> Either party may bring an individual claim in small claims court in New York County, NY, or your county of residence.</li>
             </ul>
@@ -245,7 +245,7 @@ export default function TermsPage() {
           {/* 20. Assignment */}
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">20. Assignment</h2>
-            <p className="text-gray-700 leading-relaxed">You may not assign or transfer your rights under these Terms. FRUITSTAND may assign or transfer its rights and obligations without restriction, including in connection with a merger, acquisition, or sale of assets.</p>
+            <p className="text-gray-700 leading-relaxed">You may not assign or transfer your rights under these Terms.  may assign or transfer its rights and obligations without restriction, including in connection with a merger, acquisition, or sale of assets.</p>
           </section>
 
           {/* 21. Survival */}
@@ -264,7 +264,7 @@ export default function TermsPage() {
           {/* 23. Entire Agreement */}
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">23. Entire Agreement</h2>
-            <p className="text-gray-700 leading-relaxed">These Terms, together with our Privacy Policy, Return Policy, and Cookie Policy, constitute the entire agreement between you and FRUITSTAND. They supersede any prior communications, promises, or understandings relating to the Service.</p>
+            <p className="text-gray-700 leading-relaxed">These Terms, together with our Privacy Policy, Return Policy, and Cookie Policy, constitute the entire agreement between you and . They supersede any prior communications, promises, or understandings relating to the Service.</p>
           </section>
 
           {/* 24. DMCA Notice Procedure */}
@@ -273,8 +273,8 @@ export default function TermsPage() {
             <p className="text-gray-700 leading-relaxed mb-3">If you believe that content on the Service infringes your copyright, you may submit a notification to our Designated Agent under the Digital Millennium Copyright Act (&quot;DMCA&quot;):</p>
             <div className="bg-gray-50 p-4 rounded border border-gray-200">
               <p className="text-gray-700 leading-relaxed mb-2"><strong>Designated Agent</strong></p>
-              <p className="text-gray-700 leading-relaxed mb-1">Email: <a href="mailto:legal@fruitstandny.com" className="text-blue-600 hover:text-blue-700">legal@fruitstandny.com</a></p>
-              <p className="text-gray-700 leading-relaxed">Mail: FRUITSTAND Legal, 3730 Review Avenue, Long Island City, NY 11101</p>
+              <p className="text-gray-700 leading-relaxed mb-1">Email: <a href="mailto:legal@ny.com" className="text-blue-600 hover:text-blue-700">legal@ny.com</a></p>
+              <p className="text-gray-700 leading-relaxed">Mail:  Legal, 3730 Review Avenue, Long Island City, NY 11101</p>
             </div>
             <p className="text-gray-700 leading-relaxed mt-3">Please include the information required under 17 U.S.C. § 512(c)(3).</p>
           </section>
@@ -294,9 +294,9 @@ export default function TermsPage() {
           {/* 27. Contact Us */}
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">27. Contact Us</h2>
-            <p className="text-gray-700 leading-relaxed mb-2">For customer inquiries: <a href="mailto:info@fruitstandny.com" className="text-blue-600 hover:text-blue-700">info@fruitstandny.com</a></p>
-            <p className="text-gray-700 leading-relaxed mb-2">For legal notices: <a href="mailto:legal@fruitstandny.com" className="text-blue-600 hover:text-blue-700">legal@fruitstandny.com</a></p>
-            <p className="text-gray-700 leading-relaxed">Website: <Link href="/contact" className="text-blue-600 hover:text-blue-700">fruitstandny.com/contact</Link></p>
+            <p className="text-gray-700 leading-relaxed mb-2">For customer inquiries: <a href="mailto:info@ny.com" className="text-blue-600 hover:text-blue-700">info@ny.com</a></p>
+            <p className="text-gray-700 leading-relaxed mb-2">For legal notices: <a href="mailto:legal@ny.com" className="text-blue-600 hover:text-blue-700">legal@ny.com</a></p>
+            <p className="text-gray-700 leading-relaxed">Website: <Link href="/contact" className="text-blue-600 hover:text-blue-700">ny.com/contact</Link></p>
           </section>
         </motion.div>
 

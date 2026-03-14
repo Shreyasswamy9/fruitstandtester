@@ -1,8 +1,8 @@
-# FRUITSTANDNY E-commerce Backend
+# NY E-commerce Backend
 
 ## Overview
 
-This is a comprehensive backend implementation for the FRUITSTANDNY e-commerce application built with Next.js, MongoDB, and NextAuth.js.
+This is a comprehensive backend implementation for the NY e-commerce application built with Next.js, MongoDB, and NextAuth.js.
 
 ## Features
 
@@ -94,7 +94,7 @@ Update `.env.local` with your configuration:
 
 ```env
 # Database
-MONGODB_URI=mongodb://localhost:27017/fruitstand-ny
+MONGODB_URI=mongodb://localhost:27017/-ny
 
 # Authentication
 NEXTAUTH_URL=http://localhost:3000
@@ -110,7 +110,7 @@ ADMIN_SEED_TOKEN=your-admin-token
 
 1. Install MongoDB on your machine
 2. Start MongoDB service
-3. The app will connect to `mongodb://localhost:27017/fruitstand-ny`
+3. The app will connect to `mongodb://localhost:27017/-ny`
 
 #### Option B: Using MongoDB Atlas (Cloud)
 
@@ -128,7 +128,7 @@ npm run seed
 This will create:
 
 - Sample products (t-shirts, hats, hoodies)
-- Admin user: `admin@fruitstand.ny` / `admin123`
+- Admin user: `admin@.ny` / `admin123`
 
 ### 5. Start Development Server
 

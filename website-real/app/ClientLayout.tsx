@@ -27,20 +27,20 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           items={[
             { label: "Home", ariaLabel: "Go to homepage", link: "/" },
             { label: "Shop", ariaLabel: "Browse products", link: "/shop" },
-            { label: "Account", ariaLabel: "Access your account", link: "/account" },
-            { label: "Cart", ariaLabel: "View your cart", link: "/cart" },
-            { label: "Contact", ariaLabel: "Contact us", link: "/contact" }
+            { label: "Contact", ariaLabel: "Contact us", link: "/contact" },
+            { label: "Policies", ariaLabel: "View our policies", link: "/privacy-policy" },
+            { label: "About Us", ariaLabel: "Learn about us", link: "/about" }
           ]}
           socialItems={[
-            { label: "Instagram", link: "https://www.instagram.com/fruitstandny/" },
-            { label: "X", link: "https://x.com/FruitStandNY" },
-            { label: "Facebook", link: "https://www.facebook.com/FRUITSTANDNY" }
+            { label: "Instagram", link: "https://www.instagram.com/ny/" },
+            { label: "X", link: "https://x.com/NY" },
+            { label: "Facebook", link: "https://www.facebook.com/NY" }
           ]}
           displaySocials={true}
           displayItemNumbering={true}
-          logoUrl="https://cdn.jsdelivr.net/gh/Shreyasswamy9/FruitstandNY@main/website-real/public/images/newlogo.png"
-          menuButtonColor="#000000"
-          openMenuButtonColor="#000000"
+          logoUrl="/images/patrickslogo.png"
+          menuButtonColor="#159b62"
+          openMenuButtonColor="#159b62"
           changeMenuColorOnOpen={false}
           accentColor="#ff6b6b"
           onMenuOpen={() => {}}
@@ -52,15 +52,18 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       <style jsx global>{`
         .custom-staggered-menu .staggered-menu-header {
           pointer-events: auto !important;
-          position: relative !important;
+          position: absolute !important;
           z-index: 10003 !important;
+          top: 4px !important;
+          left: 0 !important;
+          padding: 0 18px !important;
         }
 
         .custom-staggered-menu .sm-toggle {
           pointer-events: auto !important;
           background: transparent !important;
           border: none !important;
-          color: #000000 !important;
+          color: #159b62 !important;
           font-size: 16px !important;
           font-weight: 400 !important;
           padding: 8px 12px !important;

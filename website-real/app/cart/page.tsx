@@ -8,7 +8,7 @@ import { motion } from "framer-motion"
 import { useCart } from "../../components/CartContext"
 import Image from "next/image"
 import Price from '@/components/Price'
-import { useCheckout } from "../../hooks/useCheckout"
+import { useStripeCheckout } from "../../hooks/useCheckout"
 import { supabase } from "../supabase-client"
 import { useRouter } from "next/navigation"
 import type { User } from "@supabase/supabase-js"
@@ -69,7 +69,7 @@ const RAW_COUNTRY_CODES: CountryCodeDefinition[] = [
 const COUNTRY_CODE_OPTIONS: CountryCodeOption[] = RAW_COUNTRY_CODES.map((entry) => {
   const flag = getFlagEmoji(entry.country);
   const value = `${entry.country}|${entry.code}`;
-  const label = `${flag ? `${flag} ` : ''}${entry.country} · ${entry.name} (${entry.code})`;
+  const label = `${flag ? `${flag} ` : ''}${entry.country} Ã‚Â· ${entry.name} (${entry.code})`;
   return { ...entry, flag, label, value };
 });
 
@@ -110,7 +110,7 @@ export default function CartPage() {
     }
   })
   const { items, removeFromCart, clearCart, addToCart } = useCart();
-  const { redirectToCheckout, loading: checkoutLoading, error: checkoutError } = useCheckout();
+  const { createCheckoutSession, loading: checkoutLoading, error: checkoutError } = useStripeCheckout();
   const [isSignedIn, setIsSignedIn] = useState(false)
   const [user, setUser] = React.useState<User | null>(null)
 
@@ -143,7 +143,7 @@ export default function CartPage() {
   const handleRemove = (productId: string) => {
     // `productId` may be a lineId (preferred) or a productId for backwards compatibility
     const item = items.find(i => i.lineId === productId) || items.find(i => i.productId === productId);
-    const label = item ? `${item.name}${item.size ? ' — ' + item.size : ''}` : 'this item';
+    const label = item ? `${item.name}${item.size ? ' Ã¢â‚¬â€ ' + item.size : ''}` : 'this item';
     if (typeof window === 'undefined' || window.confirm(`Remove ${label} from your cart?`)) {
       removeFromCart(productId);
     }
@@ -212,7 +212,7 @@ export default function CartPage() {
     try {
       if (showGuestCheckout) {
         // Guest checkout with collected data
-        await redirectToCheckout({
+        const session = await createCheckoutSession({
           items: items,
           shipping: finalShipping,
           tax: tax,
@@ -224,9 +224,12 @@ export default function CartPage() {
             address: guestData.address,
           },
         });
+        if (typeof window !== 'undefined') {
+          window.location.assign(session.url);
+        }
       } else {
         // Authenticated user checkout
-        await redirectToCheckout({
+        const session = await createCheckoutSession({
           items: items,
           shipping: finalShipping,
           tax: tax,
@@ -236,6 +239,9 @@ export default function CartPage() {
             // Add more user data if available from session
           } : undefined,
         });
+        if (typeof window !== 'undefined') {
+          window.location.assign(session.url);
+        }
       }
     } catch (error) {
       console.error('Checkout failed:', error);
@@ -766,7 +772,7 @@ export default function CartPage() {
                       {/* Shipping Address */}
                       <div>
                         <h5 className="text-xs font-medium text-gray-700 mb-2">SHIPPING ADDRESS</h5>
-                        <p className="text-xs text-gray-500 mb-3">Optional — digital wallets like Apple Pay or Link will provide this automatically during payment.</p>
+                        <p className="text-xs text-gray-500 mb-3">Optional Ã¢â‚¬â€ digital wallets like Apple Pay or Link will provide this automatically during payment.</p>
                         <div className="space-y-3">
                           <input
                             type="text"
@@ -907,8 +913,8 @@ export default function CartPage() {
                 <div className="mt-8 pt-6 border-t border-gray-200">
                   <p className="text-xs text-gray-500 text-center mb-4">Secure checkout guaranteed</p>
                   <div className="flex justify-center space-x-4 opacity-60">
-                    <div className="text-xs text-gray-400">🔒 SSL Secured</div>
-                    <div className="text-xs text-gray-400">✓ Safe Payment</div>
+                    <div className="text-xs text-gray-400">Ã°Å¸â€â€™ SSL Secured</div>
+                    <div className="text-xs text-gray-400">Ã¢Å“â€œ Safe Payment</div>
                   </div>
                 </div>
               </motion.div>

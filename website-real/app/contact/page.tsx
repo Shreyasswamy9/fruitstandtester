@@ -1,322 +1,256 @@
-"use client"
+import Link from "next/link"
+import {
+  ArrowUpRight,
+  Grid2x2,
+  Instagram,
+  Mail,
+  Rows3,
+  Search,
+  Twitter,
+  Youtube,
+} from "lucide-react"
+import ProductPageBrandHeader from "@/components/ProductPageBrandHeader"
 
-import { useState, useEffect, useRef } from "react"
-import { useRouter } from "next/navigation"
-import { useAuthUser } from "./hooks/useAuthUser"
-import { useTickets } from "./hooks/useTickets"
-import TicketForm from "./components/TicketForm"
-import TicketList from "./components/TicketList"
-import type { TicketFormData } from "./types"
-import type { UploadResult } from "@/lib/storage"
+const quickActions = [
+  {
+    title: "Where is my order?",
+    description: "Track live updates on every shipment.",
+    href: "/order/complete",
+  },
+  {
+    title: "How do I start a return or exchange?",
+    description: "Begin a return within 14 days of delivery.",
+    href: "/return-policy",
+  },
+  {
+    title: "What is the status of my return?",
+    description: "Confirm when your item reaches our studio.",
+    href: "/account",
+  },
+  {
+    title: "What is your return policy?",
+    description: "Review timelines, conditions, and processing.",
+    href: "/return-policy",
+  },
+  {
+    title: "Can I change or cancel my order?",
+    description: "Adjust your order before it enters fulfillment.",
+    href: "#support",
+  },
+  {
+    title: "The  loyalty program",
+    description: "Unlock tiered perks and early access drops.",
+    href: "/account",
+  },
+]
+
+const infoCollections = [
+  {
+    title: "Frequently Asked Questions",
+    meta: "9 articles",
+    href: "#quick-answers",
+  },
+  {
+    title: "Account and Loyalty",
+    meta: "6 articles",
+    href: "/account",
+  },
+  {
+    title: "Policies and Care",
+    meta: "4 articles",
+    href: "/terms-and-conditions",
+  },
+]
+
+const supportChannels = [
+  {
+    icon: Mail,
+    heading: "Email our studio",
+    description: "Reach us any time and expect a response within one business day.",
+    meta: "=info@ny.com",
+    href: "mailto:info@ny.com",
+    id: "email-support",
+  },
+]
+
+const socialLinks = [
+  { icon: Instagram, label: "Instagram", href: "https://www.instagram.com/ny" },
+  { icon: Twitter, label: "Twitter", href: "https://x.com/ny" },
+  { icon: Youtube, label: "YouTube", href: "https://www.youtube.com/@ny" },
+]
 
 export default function ContactPage() {
-  const router = useRouter()
-  const [activeTab, setActiveTab] = useState<'submit' | 'track'>('submit')
-  const [submitMessage, setSubmitMessage] = useState('')
-  const [trackingEmail, setTrackingEmail] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [attachedFiles, setAttachedFiles] = useState<UploadResult[]>([])
-  const { user, session: userSession } = useAuthUser()
-  const { tickets: userTickets, fetchTickets, submitTicket, addMessage } = useTickets({ user, session: userSession })
-
-  // Refs to scroll into view for each section
-  const submitRef = useRef<HTMLDivElement | null>(null)
-  const trackRef = useRef<HTMLDivElement | null>(null)
-  const [pendingScroll, setPendingScroll] = useState<"submit" | "track" | null>(null)
-
-  const [formData, setFormData] = useState<TicketFormData>({
-    name: '',
-    email: '',
-    phone: '',
-    subject: '',
-    category: '',
-    description: '',
-    orderId: '',
-    productId: ''
-  })
-
-  // Pre-populate form with user data if logged in
-  useEffect(() => {
-    if (user) {
-      setFormData(prev => ({
-        ...prev,
-        name: user.user_metadata?.name || user.email?.split('@')[0] || '',
-        email: user.email || '',
-      }))
-      setTrackingEmail(user.email || '')
-    }
-  }, [user])
-
-  // When a tab is activated via hero buttons, smooth scroll to the section
-  useEffect(() => {
-    if (!pendingScroll) return
-    if (pendingScroll !== activeTab) return
-    const el = pendingScroll === 'submit' ? submitRef.current : trackRef.current
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      // Optional: focus for accessibility after a brief delay
-      // setTimeout(() => el.focus?.(), 350)
-      setPendingScroll(null)
-    }
-  }, [activeTab, pendingScroll])
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    })
-  }
-
-  const handleTrackTickets = () => {
-    if (trackingEmail || user?.email) {
-      fetchTickets(trackingEmail)
-    }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'open': return 'text-blue-400'
-      case 'in-progress': return 'text-yellow-400'
-      case 'waiting-response': return 'text-orange-400'
-      case 'resolved': return 'text-green-400'
-      case 'closed': return 'text-gray-400'
-      default: return 'text-gray-400'
-    }
-  }
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'low': return 'text-green-400'
-      case 'medium': return 'text-yellow-400'
-      case 'high': return 'text-orange-400'
-      case 'urgent': return 'text-red-400'
-      default: return 'text-gray-400'
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-[#fbf6f0] text-gray-900 overflow-x-hidden">
-      {/* Animated Background */}
-      <div className="fixed inset-0 opacity-10">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-purple-50 to-teal-50"></div>
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse"></div>
-        <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse animation-delay-2000"></div>
-        <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-teal-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse animation-delay-4000"></div>
-      </div>
+    <div className="relative min-h-screen bg-[#fbf6f0] text-[#181818]">
+      <ProductPageBrandHeader />
 
-      {/* Hero Section */}
-      <div className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8">
-        <div className="relative z-10 max-w-6xl mx-auto text-center">
-          <div className="mb-8">
-            <span className="inline-block px-4 py-2 bg-gray-100 backdrop-blur-sm rounded-full text-sm font-medium text-gray-600 mb-6">
-              Professional Support System
-            </span>
-          </div>
-          <h1 className="text-6xl md:text-8xl font-extralight tracking-wider mb-8 text-gray-900 leading-tight">
-            Submit a<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-teal-600">
-              Ticket
-            </span>
+      <section className="relative isolate overflow-hidden border-b border-[#181818]/10">
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 bg-linear-to-r from-[#211c16] via-[#2d251c] to-[#342a1f]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.12),transparent_60%)]" />
+        </div>
+        <div className="relative mx-auto flex max-w-5xl flex-col items-center px-6 pb-32 pt-28 text-center text-white sm:px-10">
+          <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold tracking-[0.28em] uppercase text-white/80">
+            Support Hub
+          </span>
+          <h1 className="text-4xl font-black uppercase tracking-[0.24em] sm:text-5xl md:text-6xl">
+           How can we help?
           </h1>
-          <p className="text-xl md:text-2xl text-gray-600 mb-12 font-light max-w-3xl mx-auto leading-relaxed">
-            Get organized support through our ticket system. Submit your issue, track progress, and communicate directly with our support team.
+          <p className="mt-6 max-w-2xl text-sm uppercase tracking-[0.16em] text-white/70">
+            Navigate answers, policies, and direct support tailored to every  drop.
           </p>
-          
-          {/* Tab Navigation */}
-          <div className="flex flex-wrap justify-center gap-4 mb-16">
-            <button
-              onClick={() => { setActiveTab('submit'); setPendingScroll('submit') }}
-              className={`px-8 py-3 rounded-full font-medium transition-all duration-300 transform hover:scale-105 ${
-                activeTab === 'submit'
-                  ? 'bg-gray-900 text-white'
-                  : 'border border-gray-300 text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              Submit Ticket
-            </button>
-            <button
-              onClick={() => { setActiveTab('track'); setPendingScroll('track') }}
-              className={`px-8 py-3 rounded-full font-medium transition-all duration-300 transform hover:scale-105 ${
-                activeTab === 'track'
-                  ? 'bg-gray-900 text-white'
-                  : 'border border-gray-300 text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              Track Tickets
-            </button>
+
+          <form className="mt-10 w-full max-w-2xl">
+            <div className="flex h-14 items-center gap-3 rounded-full border border-white/20 bg-white/10 px-5 text-left backdrop-blur">
+              <Search className="h-5 w-5 text-white/70" aria-hidden />
+              <input
+                type="search"
+                name="help-center-search"
+                placeholder="Search orders, returns, sizing, or general help"
+                className="h-full w-full bg-transparent text-sm uppercase tracking-[0.18em] text-white placeholder:text-white/40 focus:outline-none"
+              />
+              <button
+                type="submit"
+                className="inline-flex h-10 items-center gap-2 rounded-full border border-white/30 bg-white/20 px-4 text-xs font-semibold tracking-[0.2em] uppercase text-white transition hover:bg-white/30"
+              >
+                Search
+                <ArrowUpRight className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section id="quick-answers" className="relative z-10 -mt-20 px-6 pb-16 sm:px-10">
+        <div className="mx-auto max-w-5xl">
+          <div className="rounded-3xl border border-[#181818]/10 bg-white/90 p-6 shadow-[0_30px_80px_rgba(24,24,24,0.08)] backdrop-blur sm:p-10">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <p className="text-xs font-semibold uppercase tracking-[0.26em] text-[#6f6f6f]">
+                Quick answers
+              </p>
+              <div className="flex items-center gap-2 text-[#6f6f6f]">
+                <button
+                  type="button"
+                  aria-label="Grid view"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#181818]/10 bg-white text-[#6f6f6f] transition hover:text-[#181818]"
+                >
+                  <Grid2x2 className="h-4 w-4" aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  aria-label="List view"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#181818]/10 bg-white text-[#6f6f6f] transition hover:text-[#181818]"
+                >
+                  <Rows3 className="h-4 w-4" aria-hidden />
+                </button>
+              </div>
+            </div>
+            <div className="mt-6 grid gap-3 md:grid-cols-2">
+              {quickActions.map((item) => (
+                <Link
+                  key={item.title}
+                  href={item.href}
+                  className="group flex flex-col gap-1 rounded-2xl border border-[#181818]/10 bg-white px-5 py-4 text-left transition hover:border-[#181818]/30 hover:bg-[#f3ede5]"
+                >
+                  <span className="text-sm font-semibold uppercase tracking-[0.22em] text-[#181818]">
+                    {item.title}
+                  </span>
+                  <span className="text-[11px] uppercase tracking-[0.18em] text-[#6f6f6f]">
+                    {item.description}
+                  </span>
+                  <ArrowUpRight className="mt-2 h-4 w-4 text-[#181818]/60 transition group-hover:translate-x-1 group-hover:text-[#181818]" aria-hidden />
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Ticket System Content */}
-      <div className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-6xl mx-auto">
-          
-          {/* Submit Ticket Tab */}
-          {activeTab === 'submit' && (
-            <div ref={submitRef} id="submit-ticket-section" className="scroll-mt-24 outline-none" tabIndex={-1}>
-            <TicketForm
-              user={user}
-              formData={formData}
-              onInputChange={handleInputChange}
-              onSubmit={async (e) => {
-                e.preventDefault()
-                if (!user) {
-                  setSubmitMessage('Please sign in to submit a ticket.')
-                  setTimeout(() => router.push('/auth/signin'), 2000)
-                  return
-                }
-                setIsSubmitting(true)
-                setSubmitMessage('')
-                // prepare payload from uploaded files
-                const attachments = attachedFiles
-                  .filter(file => file.success && file.data)
-                  .map(file => ({
-                    filename: file.data!.path.split('/').pop() || 'unknown',
-                    url: file.data!.publicUrl,
-                    size: file.data!.size,
-                    type: file.data!.type
-                  }))
-
-                const result = await submitTicket({
-                  userName: formData.name,
-                  userEmail: formData.email,
-                  userPhone: formData.phone,
-                  subject: formData.subject,
-                  category: formData.category,
-                  description: formData.description,
-                  orderId: formData.orderId || undefined,
-                  productId: formData.productId || undefined,
-                  attachments
-                })
-                if (result.success) {
-                  const ticketId = result.data.ticket.ticketId
-                  setSubmitMessage(`Ticket created successfully! Your ticket ID is: ${ticketId}`)
-                  setFormData({
-                    name: user?.user_metadata?.name || user?.email?.split('@')[0] || '',
-                    email: user?.email || '',
-                    phone: '',
-                    subject: '',
-                    category: '',
-                    description: '',
-                    orderId: '',
-                    productId: ''
-                  })
-                  setAttachedFiles([])
-                  setActiveTab('track')
-                  fetchTickets()
-                } else {
-                  setSubmitMessage(`Error: ${result.error}`)
-                }
-                setIsSubmitting(false)
-              }}
-              isSubmitting={isSubmitting}
-              submitMessage={submitMessage}
-              attachedFiles={attachedFiles}
-              setAttachedFiles={setAttachedFiles}
-              onSignIn={() => router.push('/auth/signin')}
-              onSignUp={() => router.push('/auth/signup')}
-            />
-            </div>
-          )}
-
-          {/* Track Tickets Tab */}
-          {activeTab === 'track' && (
-            <div ref={trackRef} id="track-ticket-section" className="space-y-8 scroll-mt-24 outline-none" tabIndex={-1}>
-              {!user && (
-                <div className="bg-white/80 backdrop-blur-sm rounded-3xl p-8 border border-gray-300 max-w-2xl mx-auto">
-                  <h3 className="text-xl font-medium text-gray-900 mb-4 text-center">Track Your Tickets</h3>
-                  <div className="flex gap-4">
-                    <input
-                      type="email"
-                      value={trackingEmail}
-                      onChange={(e) => setTrackingEmail(e.target.value)}
-                      className="flex-1 px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-500"
-                      placeholder="Enter your email address"
-                    />
-                    <button
-                      onClick={handleTrackTickets}
-                      className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors"
-                    >
-                      Track
-                    </button>
-                  </div>
+      <section className="px-6 py-16 sm:px-10">
+        <div className="mx-auto max-w-5xl">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.28em] text-[#181818]">Get more information</h2>
+          <div className="mt-6 grid gap-4 sm:grid-cols-3">
+            {infoCollections.map((item) => (
+              <Link
+                key={item.title}
+                href={item.href}
+                className="flex flex-col justify-between gap-6 rounded-2xl border border-[#181818]/10 bg-white p-6 transition hover:border-[#181818]/30 hover:bg-[#f5eee4]"
+              >
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#6f6f6f]">{item.meta}</p>
+                  <h3 className="mt-5 text-lg font-semibold uppercase tracking-[0.22em] text-[#181818]">
+                    {item.title}
+                  </h3>
                 </div>
-              )}
-              {userTickets.length > 0 ? (
-                <TicketList
-                  tickets={userTickets}
-                  onAddMessage={(id, msg) => addMessage(id, msg)}
-                  getStatusColor={getStatusColor}
-                  getPriorityColor={getPriorityColor}
-                />
-              ) : (
-                <div className="text-center py-12">
-                  <p className="text-gray-600 text-lg">No tickets found</p>
-                  {trackingEmail && (
-                    <p className="text-gray-500 text-sm mt-2">Try submitting a ticket first or check your email address</p>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* FAQ Section */}
-      <div className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-900/50">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-4xl font-light text-white text-center mb-16">Frequently Asked Questions</h2>
-          
-          <div className="space-y-6">
-            {[
-              {
-                question: "How do I submit a ticket?",
-                answer: "Use the 'Submit Ticket' tab above to create a new support request. Provide detailed information about your issue for faster resolution."
-              },
-              {
-                question: "How can I track my tickets?",
-                answer: "Use the 'Track Tickets' tab with your email address to view all your submitted tickets and their current status."
-              },
-              {
-                question: "What's your response time for tickets?",
-                answer: "We typically respond within 24 hours for standard issues, and within 4 hours for urgent matters during business hours."
-              },
-              {
-                question: "Can I add messages to an existing ticket?",
-                answer: "Yes! View your ticket details and use the message area to add updates or additional information to any open ticket."
-              },
-              {
-                question: "What information should I include in my ticket?",
-                answer: "Include your order ID (if applicable), detailed description of the issue, steps to reproduce the problem, and any error messages you've encountered."
-              }
-            ].map((faq, index) => (
-              <div key={index} className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-300">
-                <h3 className="text-lg font-medium text-gray-900 mb-2">{faq.question}</h3>
-                <p className="text-gray-700">{faq.answer}</p>
-              </div>
+                <ArrowUpRight className="h-5 w-5 text-[#181818]/60" aria-hidden />
+              </Link>
             ))}
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Emergency Contact Info */}
-      <div className="py-12 px-4 sm:px-6 lg:px-8 bg-red-50">
-        <div className="max-w-4xl mx-auto text-center">
-          <h3 className="text-2xl font-light text-gray-900 mb-4">Need Immediate Assistance?</h3>
-          <p className="text-gray-700 mb-6">For urgent issues that require immediate attention, please contact us directly:</p>
-          <div className="flex flex-wrap justify-center gap-6">
-            <a href="mailto:urgent@fruitstand.com" className="flex items-center gap-2 px-6 py-3 bg-red-100 border border-red-300 text-red-700 rounded-xl hover:bg-red-200 transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              info@fruitstandny.com
-            </a>
+      <section id="support" className="px-6 pb-20 sm:px-10">
+        <div className="mx-auto max-w-5xl">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.28em] text-[#181818]">Get support</h2>
+          <div className="mt-6 grid gap-4">
+            {supportChannels.map((channel) => {
+              const Icon = channel.icon
+              return (
+                <Link
+                  key={channel.heading}
+                  href={channel.href}
+                  id={channel.id}
+                  className="group flex h-full flex-col justify-between gap-6 rounded-2xl border border-[#181818]/10 bg-white p-6 transition hover:border-[#181818]/30 hover:bg-[#f5eee4]"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[#181818]/10 bg-[#fbf6f0] text-[#181818]">
+                      <Icon className="h-5 w-5" aria-hidden />
+                    </span>
+                    <div>
+                      <h3 className="text-[13px] font-semibold uppercase tracking-[0.24em] text-[#181818]">
+                        {channel.heading}
+                      </h3>
+                      <p className="mt-2 text-[11px] uppercase tracking-[0.18em] text-[#6f6f6f]">
+                        {channel.description}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.18em] text-[#181818]">
+                    <span>{channel.meta}</span>
+                    <ArrowUpRight className="h-4 w-4 text-[#181818]/60 transition group-hover:translate-x-1 group-hover:text-[#181818]" aria-hidden />
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+          <p className="mt-8 text-[10px] uppercase tracking-[0.22em] text-[#6f6f6f]">
+            Studio hours: Monday to Friday · 9:30a – 6:30p EST · Expect overnight turnaround outside of launch weeks.
+          </p>
+        </div>
+      </section>
+
+      <footer className="border-t border-[#181818]/10 bg-white/60 px-6 py-12 sm:px-10">
+        <div className="mx-auto flex max-w-5xl flex-col gap-6 justify-between text-[#181818] sm:flex-row sm:items-center">
+          <p className="text-[10px] uppercase tracking-[0.22em] text-[#6f6f6f]">
+            ® Customer Support · 2026
+          </p>
+          <div className="flex items-center gap-4">
+            {socialLinks.map((social) => {
+              const Icon = social.icon
+              return (
+                <Link
+                  key={social.label}
+                  href={social.href}
+                  aria-label={social.label}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#181818]/10 bg-white text-[#181818] transition hover:border-[#181818]/40 hover:bg-[#f3ede5]"
+                >
+                  <Icon className="h-4 w-4" aria-hidden />
+                </Link>
+              )
+            })}
           </div>
         </div>
-      </div>
-
-      
+      </footer>
     </div>
   )
 }

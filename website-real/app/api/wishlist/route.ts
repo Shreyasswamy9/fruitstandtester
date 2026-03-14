@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const supabaseAdmin =
+    supabaseUrl && serviceRoleKey ? createClient(supabaseUrl, serviceRoleKey) : null
 
 // Helper to get authenticated user
 async function getUser(request: NextRequest) {
+    if (!supabaseAdmin) return null
     const authHeader = request.headers.get('authorization')
     if (!authHeader) return null
     const token = authHeader.replace('Bearer ', '')
@@ -17,6 +18,10 @@ async function getUser(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
     try {
+        if (!supabaseAdmin) {
+            return NextResponse.json({ error: 'Feature disabled in survey project' }, { status: 503 })
+        }
+
         const user = await getUser(request)
         if (!user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -38,6 +43,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
+        if (!supabaseAdmin) {
+            return NextResponse.json({ error: 'Feature disabled in survey project' }, { status: 503 })
+        }
+
         const user = await getUser(request)
         if (!user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -76,6 +85,10 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
     try {
+        if (!supabaseAdmin) {
+            return NextResponse.json({ error: 'Feature disabled in survey project' }, { status: 503 })
+        }
+
         const user = await getUser(request)
         if (!user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

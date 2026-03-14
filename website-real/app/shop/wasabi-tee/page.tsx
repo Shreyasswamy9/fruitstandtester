@@ -1,11 +1,26 @@
 "use client";
+import Link from "next/link";
+import React, { useMemo, useState } from "react";
 import Image from "next/image";
-import React, { useState } from "react";
-import SizeGuide from "@/components/SizeGuide";
-import CustomerReviews from "@/components/CustomerReviews";
-import FrequentlyBoughtTogether, { getFBTForPage } from "@/components/FrequentlyBoughtTogether";
-import { useRouter } from "next/navigation";
+import ProductImageGallery, { type ProductImageGalleryOption } from "@/components/ProductImageGallery";
+import { getFBTForPage } from "@/components/FrequentlyBoughtTogether";
+import ProductPageBrandHeader from "@/components/ProductPageBrandHeader";
 import { useCart } from "../../../components/CartContext";
+import ProductPurchaseBar, { PurchaseSizeOption } from "@/components/ProductPurchaseBar";
+import SizeGuide from "@/components/SizeGuide";
+import { useTrackProductView } from "@/hooks/useTrackProductView";
+
+function formatText(text: string, productName: string, colorNames: string[]): string {
+  let lower = text.toLowerCase();
+  const nameRegex = new RegExp(productName, "gi");
+  lower = lower.replace(nameRegex, productName.toUpperCase());
+  colorNames.forEach(color => {
+    const colorRegex = new RegExp(color, "gi");
+    lower = lower.replace(colorRegex, color.toUpperCase());
+  });
+  lower = lower.replace(/(?:^|[.!?]\s+)([a-z])/g, (match) => match.toUpperCase());
+  return lower;
+}
 
 const wasabiImages = [
   "/images/products/Wasabi Tee/Wabasabi 1.png",
@@ -24,92 +39,151 @@ const PRODUCT = {
     "Designed in NYC and crafted in Portugal",
     "Includes NYC-made hang tags and sustainable burlap bag",
     "Image of Scheffel Hall (photo taken Dec 2021) inside our golden pear motif",
+    "Quality guaranteed, Free returns."
   ],
   sizes: ["XS", "S", "M", "L", "XL", "XXL", "XXXL"],
 };
 
 export default function WasabiTeePage() {
   const [selectedImage, setSelectedImage] = useState(wasabiImages[0]);
-  const [selectedSize, setSelectedSize] = useState(PRODUCT.sizes[2]);
-  const { addToCart, items } = useCart();
-  const [showPopup, setShowPopup] = useState(false);
-  const router = useRouter();
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const { addToCart } = useCart();
+
+  useTrackProductView({
+    productId: "51977ef7-ae8f-486f-9dd7-7620e3b6e70a",
+    productName: PRODUCT.name,
+    price: PRODUCT.price,
+    currency: "USD",
+  });
+
   const handleAddToCart = () => {
+    if (!selectedSize) return;
     addToCart({
-      productId: "wasabi-tee",
+      productId: "51977ef7-ae8f-486f-9dd7-7620e3b6e70a",
       name: PRODUCT.name,
       price: PRODUCT.price,
       image: selectedImage,
       quantity: 1,
       size: selectedSize,
     });
-    setShowPopup(true);
-    setTimeout(() => setShowPopup(false), 1500);
   };
 
   const boughtTogetherItems = getFBTForPage('wasabi-tee');
 
-  const taskbarHeight = items.length > 0 && !showPopup ? 64 : 0;
+  const sizeOptions: PurchaseSizeOption[] = PRODUCT.sizes.map((size) => ({
+    value: size,
+    label: size,
+  }));
 
   return (
     <div>
-      <span onClick={() => router.back()} style={{ position: 'fixed', top: 24, left: '50%', transform: 'translateX(-50%)', fontSize: 16, color: '#232323', cursor: 'pointer', fontWeight: 500, zIndex: 10005, background: 'rgba(255,255,255,0.9)', border: '1px solid #e0e0e0', borderRadius: '20px', padding: '8px 16px', textDecoration: 'none', backdropFilter: 'blur(10px)', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', transition: 'all 0.2s ease', pointerEvents: 'auto' }}>← Go Back</span>
-      <div className="flex flex-col md:flex-row gap-8 max-w-4xl mx-auto py-12 px-4" style={{ paddingTop: 120, paddingBottom: taskbarHeight }}>
-        <div className="flex w-full md:w-1/2 flex-col items-center gap-4">
-          <div className="relative w-full max-w-sm md:max-w-full aspect-square rounded-xl overflow-hidden bg-white shadow-sm">
-            <Image src={selectedImage} alt={PRODUCT.name} fill sizes="(max-width: 768px) 90vw, 420px" style={{ objectFit: "contain", background: "#fff" }} priority />
+      <ProductPageBrandHeader />
+      
+      <main className="bg-[#fbf5ed] pb-15 pt-16 md:pt-20 lg:pt-24">
+        {/* HERO SECTION - Top 75% */}
+        <div className="mx-auto w-full max-w-7xl px-6 text-center lg:px-12 lg:text-left lg:grid lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] lg:items-start lg:gap-14" style={{ minHeight: '75vh' }}>
+          {/* IMAGE */}
+          <div className="relative mx-auto aspect-4/5 w-full lg:mx-0 lg:max-w-155 lg:row-span-3">
+            <ProductImageGallery
+              productName={PRODUCT.name}
+              options={[
+                {
+                  name: "Default",
+                  images: wasabiImages,
+                },
+              ]}
+              selectedOption={{
+                name: "Default",
+                images: wasabiImages,
+              } as ProductImageGalleryOption}
+              selectedImage={selectedImage}
+              onImageChange={(image) => {
+                setSelectedImage(image);
+                setCurrentImageIndex(wasabiImages.indexOf(image));
+              }}
+              className="h-full w-full"
+              frameBackground="transparent"
+            />
           </div>
-          <div className="flex gap-2 justify-center">
-            {wasabiImages.map((img) => (
-              <button key={img} onClick={() => setSelectedImage(img)} className={`relative w-16 h-16 rounded border ${selectedImage === img ? "ring-2 ring-black" : ""}`}>
-                <Image src={img} alt={PRODUCT.name} fill style={{ objectFit: "contain", background: "#fff" }} />
-              </button>
-            ))}
+
+          {/* TITLE / PRICE */}
+          <div className="mt-8 flex flex-col items-center lg:col-start-2 lg:items-start lg:mt-45">
+            <h1 className="text-[24px] uppercase tracking-[0.08em] leading-tight text-[#1d1c19] font-avenir-black">
+              {PRODUCT.name}
+            </h1>
+
+            <p className="mt-2 text-[26px] font-black text-[#1d1c19]">Coming Soon</p>
+
+            {/* SIZE GUIDE */}
+            <div className="mt-2 text-[13px] font-semibold uppercase tracking-[0.34em] text-[#1d1c19] lg:col-start-2 lg:text-left">
+              <SizeGuide
+                productSlug="wasabi-tee"
+                imagePath="/images/size-guides/Size Guide/Wabasabi Tee Table.png"
+                buttonLabel="SIZE GUIDE"
+                className="text-[13px] font-semibold uppercase tracking-[0.34em]"
+              />
+            </div>
           </div>
         </div>
-        <div className="md:w-1/2 flex flex-col justify-start">
-          <h1 className="text-3xl font-bold mb-2">{PRODUCT.name}</h1>
-          <div className="text-2xl font-semibold mb-6">${PRODUCT.price.toFixed(2)}</div>
-          <div className="mb-4">
-            <p className="text-sm font-medium text-gray-700 mb-3">Size:</p>
-            <div className="size-single-line">
-              {PRODUCT.sizes.map((size) => (
-                <button key={size} className={`size-button px-3 rounded-lg font-semibold border-2 transition-all ${selectedSize === size ? 'border-black bg-black text-white' : 'border-gray-300 bg-white text-black hover:border-gray-400 hover:bg-gray-50'}`} onClick={() => setSelectedSize(size)} type="button">{size}</button>
+
+        {/* DESCRIPTION SECTION */}
+        <div className="mx-auto w-full max-w-225 px-6 text-center lg:px-12 lg:text-left mt-5">
+          <p className="px-1 text-[14px] leading-relaxed text-[#3d372f]">
+            {formatText(PRODUCT.description, "Wabisabi™ Scheffel Hall Pears Tee", ["Wabisabi", "Scheffel", "Hall", "Pears", "Portugal"])}
+          </p>
+        </div>
+
+        {/* DETAILS SECTION */}
+        <div className="mx-auto w-full max-w-225 px-6 text-left lg:px-12">
+          <div className="mt-8">
+            <p className="text-base font-semibold text-[#1d1c19]">Details</p>
+            <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-[#1d1c19]">
+              {PRODUCT.details.map((detail) => (
+                <li key={detail}>{formatText(detail, "Wabisabi™ Scheffel Hall Pears Tee", ["Wabisabi", "Scheffel", "Hall", "Pears", "Portugal"])}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {/* YOU MAY ALSO LIKE SECTION */}
+        <div className="mx-auto w-full max-w-300 px-6 text-center lg:px-12">
+          <div className="mt-8">
+            <p className="text-[22px] font-black uppercase tracking-[0.32em] text-[#1d1c19]">
+              You May Also Like
+            </p>
+            <div className="mt-5 grid w-full grid-cols-2 gap-x-4 gap-y-6 text-left sm:grid-cols-3 lg:grid-cols-4">
+              {boughtTogetherItems.map((product) => (
+                <Link
+                  key={`${product.name}-${product.image}`}
+                  href={`/shop/${product.id}`}
+                  className="flex flex-col hover:shadow-lg transition-shadow rounded-lg"
+                  style={{ textDecoration: 'none' }}
+                >
+                  <div className="relative aspect-4/5 w-full overflow-hidden border border-[#1d1c19] bg-white">
+                    <Image src={product.image} alt={product.name} fill className="object-cover" sizes="200px" />
+                  </div>
+                  <p className="mt-4 text-[11px] font-black uppercase tracking-[0.34em] text-[#1d1c19]">
+                    {product.name}
+                  </p>
+                  <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.34em] text-[#1d1c19]">
+                    Coming Soon
+                  </p>
+                </Link>
               ))}
             </div>
-            <div className="mt-2"><SizeGuide productSlug="wasabi-tee" imagePath="/images/size-guides/Size Guide/Wabasabi Tee Table.png" /></div>
           </div>
-
-          <div className="mb-4 space-y-4">
-            <p className="text-lg text-gray-700 leading-relaxed">{PRODUCT.description}</p>
-            {PRODUCT.details && (
-              <div>
-                <span className="text-xs uppercase tracking-[0.2em] text-gray-500">Details</span>
-                <ul className="mt-2 list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
-                  {PRODUCT.details.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-
-          <button className="bg-black text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-800 mb-2" onClick={handleAddToCart}>Add to Cart</button>
         </div>
-      </div>
+      </main>
 
-      <FrequentlyBoughtTogether
-        products={boughtTogetherItems}
-        onAddToCart={(item) => { addToCart({ productId: item.id, name: item.name, price: item.price, image: item.image, quantity: 1, size: PRODUCT.sizes[2] }); setShowPopup(true); setTimeout(() => setShowPopup(false), 1500); }}
-        onAddAllToCart={() => { boughtTogetherItems.forEach((item) => addToCart({ productId: item.id, name: item.name, price: item.price, image: item.image, quantity: 1, size: PRODUCT.sizes[2] })); setShowPopup(true); setTimeout(() => setShowPopup(false), 1500); }}
+      <ProductPurchaseBar
+        price={PRODUCT.price}
+        summaryLabel="WABISABI™ SCHEFFEL HALL PEARS TEE"
+        sizeOptions={sizeOptions}
+        selectedSize={selectedSize}
+        onSelectSize={setSelectedSize}
+        onAddToCart={handleAddToCart}
       />
-
-      {/* Reviews */}
-      <div style={{ display: 'flex', alignItems: 'center', background: '#fbf6f0' }} className="py-12 px-4">
-        <div className="max-w-4xl mx-auto w-full">
-          <CustomerReviews productId="wasabi-tee" />
-        </div>
-      </div>
 
     </div>
   );
