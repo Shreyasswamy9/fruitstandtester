@@ -1,10 +1,33 @@
 import { loadStripe } from '@stripe/stripe-js';
 import Stripe from 'stripe';
 
-// Client-side Stripe instance
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+const stripePromise = publishableKey ? loadStripe(publishableKey) : Promise.resolve(null);
 
-// Server-side Stripe instance (use account default API version)
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+let cachedStripe: Stripe | null = null;
+
+export function getServerStripe() {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+
+  if (!stripeSecretKey) {
+    return null;
+  }
+
+  cachedStripe ??= new Stripe(stripeSecretKey);
+  return cachedStripe;
+}
+
+export const stripe = new Proxy({} as Stripe, {
+  get(_target, property, receiver) {
+    const client = getServerStripe();
+
+    if (!client) {
+      throw new Error('Stripe is not configured. Set STRIPE_SECRET_KEY.');
+    }
+
+    const value = Reflect.get(client as object, property, receiver);
+    return typeof value === 'function' ? value.bind(client) : value;
+  },
+});
 
 export default stripePromise;

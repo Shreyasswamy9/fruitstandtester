@@ -1,10 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/app/supabase-client';
-import { SupabaseCartService, SupabaseProductService } from '@/lib/services/supabase';
+import { SupabaseCartService, SupabaseProductService, getSupabaseServerClient } from '@/lib/services/supabase';
+
+function getConfiguredSupabaseOrResponse() {
+  const supabase = getSupabaseServerClient();
+
+  if (!supabase) {
+    return NextResponse.json(
+      { success: false, error: 'Supabase is not configured for this environment' },
+      { status: 503 }
+    );
+  }
+
+  return supabase;
+}
 
 // GET /api/cart - Get user's cart
 export async function GET(request: NextRequest) {
   try {
+    const supabase = getConfiguredSupabaseOrResponse();
+    if (supabase instanceof NextResponse) {
+      return supabase;
+    }
+
     // Get user from auth (optional for guest users)
     let userId = null;
     const authHeader = request.headers.get('Authorization');
@@ -43,6 +60,11 @@ export async function GET(request: NextRequest) {
 // POST /api/cart - Add item to cart
 export async function POST(request: NextRequest) {
   try {
+    const supabase = getConfiguredSupabaseOrResponse();
+    if (supabase instanceof NextResponse) {
+      return supabase;
+    }
+
     // Get user from auth (optional for guest users)
     let userId = null;
     const authHeader = request.headers.get('Authorization');
@@ -193,6 +215,11 @@ export async function PUT(request: NextRequest) {
 // DELETE /api/cart - Clear cart or remove item
 export async function DELETE(request: NextRequest) {
   try {
+    const supabase = getConfiguredSupabaseOrResponse();
+    if (supabase instanceof NextResponse) {
+      return supabase;
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const itemId = searchParams.get('itemId');
 

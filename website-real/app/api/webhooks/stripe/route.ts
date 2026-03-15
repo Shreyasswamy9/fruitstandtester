@@ -7,7 +7,18 @@ import { readCartMetadata } from '@/lib/stripeCartMetadata'
 import { sendTransactionalTemplate } from '@/lib/email/transactional'
 import { hasEmailEvent, recordEmailEvent } from '@/lib/email/emailEvents'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+let cachedStripe: Stripe | null = null
+
+function getStripeClient() {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+
+  if (!stripeSecretKey) {
+    return null
+  }
+
+  cachedStripe ??= new Stripe(stripeSecretKey)
+  return cachedStripe
+}
 
 export const runtime = 'nodejs'
 
@@ -77,6 +88,15 @@ type CustomerPayload = {
 
 export async function POST(request: NextRequest) {
   try {
+    const stripe = getStripeClient()
+
+    if (!stripe) {
+      return NextResponse.json(
+        { error: 'Stripe is disabled for this environment' },
+        { status: 503 }
+      )
+    }
+
     const signature = request.headers.get('stripe-signature');
 
     if (!signature) {

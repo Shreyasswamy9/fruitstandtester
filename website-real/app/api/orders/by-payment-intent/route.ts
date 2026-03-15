@@ -2,7 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SupabaseOrderService } from '@/lib/services/supabase-existing';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+let cachedStripe: Stripe | null = null;
+
+function getStripeClient() {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+
+  if (!stripeSecretKey) {
+    return null;
+  }
+
+  cachedStripe ??= new Stripe(stripeSecretKey);
+  return cachedStripe;
+}
 
 export async function GET(request: NextRequest) {
   const paymentIntentId = request.nextUrl.searchParams.get('payment_intent');
@@ -43,6 +54,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const stripe = getStripeClient();
+
+    if (!stripe) {
+      return NextResponse.json({ error: 'Stripe is disabled for this environment', data: null }, { status: 503 });
+    }
+
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
 
     // Only return order data for payment intents that have actually succeeded.

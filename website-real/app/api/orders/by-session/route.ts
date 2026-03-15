@@ -2,7 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SupabaseOrderService } from '@/lib/services/supabase-existing';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+let cachedStripe: Stripe | null = null;
+
+function getStripeClient() {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+
+  if (!stripeSecretKey) {
+    return null;
+  }
+
+  cachedStripe ??= new Stripe(stripeSecretKey);
+  return cachedStripe;
+}
 
 export async function GET(request: NextRequest) {
   const sessionId = request.nextUrl.searchParams.get('session_id');
@@ -15,6 +26,12 @@ export async function GET(request: NextRequest) {
     const order = await SupabaseOrderService.getOrderByStripeSession(sessionId);
 
     if (!order) {
+      const stripe = getStripeClient();
+
+      if (!stripe) {
+        return NextResponse.json({ error: 'Stripe is disabled for this environment', data: null }, { status: 503 });
+      }
+
       // 1. Fetch session from Stripe
       console.log('Order not found in DB for session:', sessionId);
       const session = await stripe.checkout.sessions.retrieve(sessionId);

@@ -1,6 +1,17 @@
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
+let cachedStripe: Stripe | null = null;
+
+function getStripeClient() {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+
+  if (!stripeSecretKey) {
+    return null;
+  }
+
+  cachedStripe ??= new Stripe(stripeSecretKey);
+  return cachedStripe;
+}
 
 export interface TaxEstimateResult {
   taxAmount: number;
@@ -20,6 +31,12 @@ export async function calculateTaxEstimate(
   currency: string = 'usd'
 ): Promise<TaxEstimateResult> {
   try {
+    const stripe = getStripeClient();
+
+    if (!stripe) {
+      throw new Error('Stripe is not configured for this environment.');
+    }
+
     const amountInCents = Math.round(subtotal * 100);
 
     // Create a tax calculation

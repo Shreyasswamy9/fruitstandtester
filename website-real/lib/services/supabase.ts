@@ -1,6 +1,49 @@
 // Supabase-based database services to replace MongoDB
-import { supabase } from '@/app/supabase-client';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { TICKETS_TABLE, TICKET_MESSAGES_TABLE } from '@/lib/tickets/config';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
+
+function hasValidSupabaseConfig() {
+  if (!supabaseUrl || !supabaseKey) {
+    return false;
+  }
+
+  return ![
+    'supabase.com/dashboard/project/_/settings/api',
+    'your-project-url',
+    'your-anon-key',
+    'your-publishable-key',
+    'your_service_role_key_here',
+  ].some((placeholder) => supabaseUrl.includes(placeholder) || supabaseKey.includes(placeholder));
+}
+
+let cachedSupabaseClient: SupabaseClient | null = null;
+
+export function getSupabaseServerClient() {
+  if (!hasValidSupabaseConfig()) {
+    return null;
+  }
+
+  cachedSupabaseClient ??= createClient(supabaseUrl!, supabaseKey!);
+  return cachedSupabaseClient;
+}
+
+const supabase = new Proxy({} as SupabaseClient, {
+  get(_target, property, receiver) {
+    const client = getSupabaseServerClient();
+
+    if (!client) {
+      throw new Error(
+        'Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.'
+      );
+    }
+
+    const value = Reflect.get(client as object, property, receiver);
+    return typeof value === 'function' ? value.bind(client) : value;
+  },
+});
 
 // Types for Supabase tables
 export interface Product {
